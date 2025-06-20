@@ -1,8 +1,12 @@
-import { Loader2, Gem, Sparkles, Moon, Sun, Home, Users, Settings, Image as ImageIcon, Download, Wand2, Zap, Palette } from 'lucide-react';
+import { Loader2, Gem, Sparkles, Moon, Sun, Home, Users, Settings, Image as ImageIcon, Download, Wand2, Zap, Palette, type LucideIcon } from 'lucide-react';
+import type { ComponentProps } from 'react';
 
-import { Icons as IconsType } from '@/types';
+// Définition du type pour les éléments JSX
+import React from 'react';
 
-export const Icons: IconsType = {
+type Icon = LucideIcon | ((props: ComponentProps<'svg'>) => React.JSX.Element);
+
+const Icons = {
   spinner: Loader2,
   gem: Gem,
   sparkles: Sparkles,
@@ -16,7 +20,7 @@ export const Icons: IconsType = {
   wand: Wand2,
   zap: Zap,
   palette: Palette,
-  logo: (props) => (
+  logo: (props: React.SVGProps<SVGSVGElement>) => (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width="24"
@@ -34,7 +38,7 @@ export const Icons: IconsType = {
       <path d="M2 12l10 5 10-5" />
     </svg>
   ),
-  google: (props) => (
+  google: (props: React.SVGProps<SVGSVGElement>) => (
     <svg role="img" viewBox="0 0 24 24" {...props}>
       <path
         fill="currentColor"
@@ -42,7 +46,7 @@ export const Icons: IconsType = {
       />
     </svg>
   ),
-  github: (props) => (
+  github: (props: React.SVGProps<SVGSVGElement>) => (
     <svg role="img" viewBox="0 0 24 24" {...props}>
       <path
         fill="currentColor"
@@ -50,4 +54,6 @@ export const Icons: IconsType = {
       />
     </svg>
   ),
-};
+} as const;
+
+export { Icons };
