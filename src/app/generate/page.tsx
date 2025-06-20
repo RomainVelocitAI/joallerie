@@ -1,8 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import { Wand2, Image as ImageIcon, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Loader2, Image as ImageIcon, Download, Wand2 } from 'lucide-react';
+import { api } from '@/lib/api';
+import { toast } from 'sonner';
+import { JewelryType, Material, Style, GeneratedImage } from '@/types/jewelry';
+
+interface JewelryImage {
+  id: string;
+  url: string;
+  prompt: string;
+  revised_prompt?: string;
+  selected: boolean;
+}
 
 const JEWELRY_TYPES = [
   'Bague', 
@@ -15,176 +26,177 @@ const JEWELRY_TYPES = [
   'Bague de promesse',
   'Chaîne',
   'Gourmette',
-  'Montre',
-  'Autre'
-];
-
-const MATERIALS = [
-  'Or jaune', 
-  'Or blanc', 
-  'Or rose', 
-  'Argent 925', 
-  'Platine',
-  'Palladium',
-  'Acier inoxydable',
-  'Titane',
-  'Or blanc rhodié',
-  'Or jaune 18 carats',
-  'Or blanc 18 carats',
-  'Or rose 18 carats'
-];
-
-const STYLES = [
-  'Moderne', 
-  'Classique', 
-  'Vintage', 
-  'Minimaliste', 
-  'Fantaisie',
-  'Élégant',
-  'Bohème',
-  'Rétro',
-  'Contemporain',
-  'Art déco',
-  'Baroque',
-  'Personnalisé'
 ];
 
 export default function JewelryGenerator() {
-  const [loading, setLoading] = useState(false);
-  const [images, setImages] = useState<string[]>([]);
+  const [jewelryType, setJewelryType] = useState<JewelryType>('bague');
+  const [material, setMaterial] = useState<Material>('or');
+  const [style, setStyle] = useState<Style>('moderne');
+  const [description, setDescription] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedImages, setGeneratedImages] = useState<JewelryImage[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  
-  const [specs, setSpecs] = useState({
-    type: JEWELRY_TYPES[0],
-    material: MATERIALS[0],
-    style: STYLES[0],
-    description: '',
-  });
 
-  const handleGenerate = async () => {
-    setLoading(true);
-    setImages([]);
-    setSelectedImage(null);
+  const generateImages = async () => {
+    if (!description.trim()) {
+      toast.error('Veuillez entrer une description');
+      return;
+    }
+
+    setIsGenerating(true);
     
     try {
-      // Simuler un délai pour le chargement
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const prompt = `${jewelryType} en ${material} de style ${style}: ${description}`;
       
-      // Dans une vraie application, on appellerait l'API ici
-      // const response = await fetch('/api/generate', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     prompt: generatePrompt(),
-      //   })
-      // });
-      // const data = await response.json();
+      const images = await api.generateImages({
+        prompt,
+        size: '1024x1024',
+        n: 4
+      });
+
+      const newImages: JewelryImage[] = images.map((img, index) => ({
+        id: `img-${Date.now()}-${index}`,
+        url: img.url,
+        prompt: img.revised_prompt || prompt,
+        revised_prompt: img.revised_prompt,
+        selected: false
+      }));
+
+      setGeneratedImages(newImages);
       
-      // Simulation de données pour le développement
-      const mockImages = [
-        'https://images.unsplash.com/photo-1611591437281-460914d22873?w=500&auto=format&fit=crop&q=60',
-        'https://images.unsplash.com/photo-1602173570798-2eeaa302be42?w=500&auto=format&fit=crop&q=60',
-        'https://images.unsplash.com/photo-1605100804545-04cdaa0d4a95?w=500&auto=format&fit=crop&q=60',
-        'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=500&auto=format&fit=crop&q=60'
-      ];
+      if (newImages.length > 0) {
+        selectImage(newImages[0].id);
+      }
       
-      setImages(mockImages);
-      setSelectedImage(mockImages[0]);
+      toast.success('Images générées avec succès');
     } catch (error) {
       console.error('Erreur lors de la génération:', error);
+      toast.error(
+        error instanceof Error ? error.message : 'Une erreur est survenue lors de la génération des images'
+      );
     } finally {
-      setLoading(false);
+      setIsGenerating(false);
     }
   };
 
-  const generatePrompt = () => {
-    return `Crée une image photoréaliste d'une ${specs.material} ${specs.type} de style ${specs.style}. ${specs.description}`;
+  const selectImage = (id: string) => {
+    setGeneratedImages(prev => 
+      prev.map(img => ({
+        ...img,
+        selected: img.id === id
+      }))
+    );
+    setSelectedImage(id);
   };
 
-  const handleExport = () => {
-    if (!selectedImage) return;
-    // Dans une vraie application, on appellerait l'API d'export ici
-    alert('Fonctionnalité d\'export à implémenter');
+  const downloadImage = async (url: string, prompt: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `bijou-${prompt.substring(0, 20).toLowerCase().replace(/\s+/g, '-')}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
+      a.remove();
+      toast.success('Téléchargement démarré');
+    } catch (err) {
+      console.error('Erreur lors du téléchargement:', err);
+      toast.error('Erreur lors du téléchargement de l\'image');
+    }
+  };
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const target = e.target as HTMLImageElement;
+    target.onerror = null;
+    target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzk5OSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yMSAxNnY0YTIgMiAwIDAgMS0yIDJINWEyIDIgMCAwIDEtMi0ydi00Ii8+PHBvbHlsaW5lIHBvaW50cz0iOCAxNiAxMiAxMiAxNiAxNiIvPjxsaW5lIHgxPSIxMiIgeTE9IjIiIHgyPSIxMiIgeTI9IjEyIi8+PC9zdmc+'
   };
 
   return (
-    <div className="container mx-auto p-4 md:p-8 max-w-6xl">
-      <h1 className="text-3xl font-bold mb-8 text-center">Générateur de Bijoux IA</h1>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-8">Générateur de Bijoux IA</h1>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Formulaire */}
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-6 flex items-center">
-            <Wand2 className="mr-2 h-5 w-5" /> Spécifications
-          </h2>
+        {/* Formulaire de génération */}
+        <div className="lg:col-span-1 bg-card p-6 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold mb-4">Spécifications du bijou</h2>
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Type de bijou</label>
+              <label className="block text-sm font-medium mb-1">Type de bijou</label>
               <select 
-                value={specs.type}
-                onChange={(e) => setSpecs({...specs, type: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={jewelryType}
+                onChange={(e) => setJewelryType(e.target.value as JewelryType)}
+                className="w-full p-2 border rounded-md bg-background text-foreground"
+                disabled={isGenerating}
               >
-                {JEWELRY_TYPES.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
+                <option value="bague">Bague</option>
+                <option value="collier">Collier</option>
+                <option value="bracelet">Bracelet</option>
+                <option value="boucles-oreilles">Boucles d'oreilles</option>
+                <option value="autre">Autre</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Métal</label>
+              <label className="block text-sm font-medium mb-1">Matière</label>
               <select 
-                value={specs.material}
-                onChange={(e) => setSpecs({...specs, material: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={material}
+                onChange={(e) => setMaterial(e.target.value as Material)}
+                className="w-full p-2 border rounded-md bg-background text-foreground"
+                disabled={isGenerating}
               >
-                {MATERIALS.map(material => (
-                  <option key={material} value={material}>{material}</option>
-                ))}
+                <option value="or">Or</option>
+                <option value="argent">Argent</option>
+                <option value="platine">Platine</option>
+                <option value="or-rose">Or rose</option>
+                <option value="pierres-precieuses">Pierres précieuses</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Style</label>
+              <label className="block text-sm font-medium mb-1">Style</label>
               <select 
-                value={specs.style}
-                onChange={(e) => setSpecs({...specs, style: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={style}
+                onChange={(e) => setStyle(e.target.value as Style)}
+                className="w-full p-2 border rounded-md bg-background text-foreground"
+                disabled={isGenerating}
               >
-                {STYLES.map(style => (
-                  <option key={style} value={style}>{style}</option>
-                ))}
+                <option value="moderne">Moderne</option>
+                <option value="classique">Classique</option>
+                <option value="vintage">Vintage</option>
+                <option value="ethnique">Ethnique</option>
+                <option value="fantaisie">Fantaisie</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description détaillée
-                <span className="text-xs text-gray-500 ml-1">(facultatif)</span>
-              </label>
+              <label className="block text-sm font-medium mb-1">Description détaillée</label>
               <textarea
-                value={specs.description}
-                onChange={(e) => setSpecs({...specs, description: e.target.value})}
-                rows={4}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
                 placeholder="Décrivez en détail le bijou que vous imaginez..."
+                rows={4}
+                className="w-full p-2 border rounded-md bg-background text-foreground"
+                disabled={isGenerating}
               />
             </div>
 
             <Button
-              onClick={handleGenerate}
-              disabled={loading}
-              className="w-full mt-6"
+              onClick={generateImages}
+              disabled={isGenerating}
+              className="w-full"
             >
-              {loading ? (
+              {isGenerating ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                   Génération en cours...
                 </>
               ) : (
                 <>
-                  <ImageIcon className="mr-2 h-4 w-4" />
+                  <Wand2 className="w-4 h-4 mr-2" />
                   Générer des modèles
                 </>
               )}
@@ -192,85 +204,92 @@ export default function JewelryGenerator() {
           </div>
         </div>
 
-        {/* Résultats */}
+        {/* Résultats de la génération */}
         <div className="lg:col-span-2">
-          <div className="bg-white p-6 rounded-lg shadow-md h-full">
-            <h2 className="text-xl font-semibold mb-6 flex items-center">
-              <ImageIcon className="mr-2 h-5 w-5" /> Modèles générés
-            </h2>
+          <div className="bg-card p-6 rounded-lg shadow-md mb-6">
+            <h2 className="text-xl font-semibold mb-4">Modèles générés</h2>
             
-            {loading ? (
-              <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-                <span className="ml-2 text-gray-500">Génération en cours...</span>
-              </div>
-            ) : images.length > 0 ? (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {images.map((img, index) => (
-                    <div 
-                      key={index}
-                      className={`relative group rounded-lg overflow-hidden border-2 ${
-                        selectedImage === img 
-                          ? 'border-blue-500 ring-2 ring-blue-200' 
-                          : 'border-gray-200 hover:border-gray-300'
-                      } transition-all`}
-                    >
-                      <img
-                        src={img}
-                        alt={`Modèle ${index + 1}`}
-                        className="w-full h-48 object-cover cursor-pointer"
-                        onClick={() => setSelectedImage(img)}
-                      />
-                      {selectedImage === img && (
-                        <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button 
-                            variant="secondary" 
-                            size="sm"
-                            className="bg-white text-gray-800 hover:bg-gray-100"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // Fonction d'édition à implémenter
-                            }}
-                          >
-                            ✏️ Éditer
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-medium">Modèle sélectionné</h3>
-                      <p className="text-sm text-gray-500">
-                        {specs.material} {specs.type} - Style {specs.style}
-                      </p>
-                    </div>
-                    <Button 
-                      onClick={handleExport}
-                      className="ml-4"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Exporter
-                    </Button>
-                  </div>
-                </div>
+            {generatedImages.length === 0 ? (
+              <div className="text-center py-12 border-2 border-dashed rounded-lg">
+                <ImageIcon className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-2 text-sm font-medium">Aucun modèle généré</h3>
+                <p className="mt-1 text-sm text-muted-foreground">Utilisez le formulaire pour générer des modèles de bijoux uniques.</p>
               </div>
             ) : (
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-                <div className="flex flex-col items-center justify-center">
-                  <ImageIcon className="h-12 w-12 text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-1">Aucun modèle généré</h3>
-                  <p className="text-gray-500 mb-4">
-                    Remplissez le formulaire et cliquez sur "Générer des modèles" pour commencer.
-                  </p>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {generatedImages.map((image) => (
+                  <div 
+                    key={image.id} 
+                    className={`relative group border-2 rounded-lg overflow-hidden transition-all ${
+                      image.selected 
+                        ? 'ring-2 ring-primary border-primary' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => selectImage(image.id)}
+                  >
+                    <img 
+                      src={image.url} 
+                      alt={image.prompt} 
+                      className="w-full h-48 object-cover"
+                      onError={handleImageError}
+                    />
+                    <div className="p-3">
+                      <p className="text-xs text-muted-foreground truncate">
+                        {image.prompt}
+                      </p>
+                    </div>
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <Button 
+                        variant="secondary"
+                        size="icon"
+                        className="rounded-full"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          downloadImage(image.url, image.prompt);
+                        }}
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
+
+          {selectedImage && generatedImages.some(img => img.id === selectedImage) && (
+            <div className="bg-card p-6 rounded-lg shadow-md mt-6">
+              <h2 className="text-xl font-semibold mb-4">Modèle sélectionné</h2>
+              <div className="flex flex-col items-center">
+                <div className="relative w-full max-w-md mb-4">
+                  {generatedImages.find(img => img.id === selectedImage)?.url && (
+                    <img 
+                      src={generatedImages.find(img => img.id === selectedImage)?.url} 
+                      alt="Modèle sélectionné" 
+                      className="w-full rounded-lg shadow-lg"
+                      onError={handleImageError}
+                    />
+                  )}
+                </div>
+                <div className="flex gap-4">
+                  <Button
+                    onClick={() => {
+                      const img = generatedImages.find(img => img.id === selectedImage);
+                      if (img) {
+                        downloadImage(img.url, img.prompt);
+                      }
+                    }}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Télécharger
+                  </Button>
+                  <Button variant="outline">
+                    Ajouter à la sélection
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
