@@ -1,28 +1,27 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-// Interface pour la requête
-interface GenerateRequest {
+// Définition des types pour la requête
+type GenerateRequest = {
   description: string;
   jewelryType: string;
   material: string;
   style: string;
-}
+};
 
-// Initialiser le client OpenAI
-console.log('Initialisation du client OpenAI...');
-console.log('Clé API OpenAI:', process.env.OPENAI_API_KEY ? '*** (présente)' : 'manquante');
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || '',
-});
+// Type pour la réponse d'erreur
+type ErrorResponse = {
+  error: string;
+  details: string;
+  debug?: Record<string, any>;
+  timestamp?: string;
+};
 
 export async function POST(request: Request) {
   console.log('=== DÉBUT DE LA REQUÊTE ===');
   console.log('Environnement:', process.env.NODE_ENV);
   console.log('URL de la requête:', request.url);
   console.log('Méthode:', request.method);
-  console.log('En-têtes:', Object.fromEntries(request.headers.entries()));
   
   try {
     // Vérifier que la clé API est configurée
@@ -30,199 +29,211 @@ export async function POST(request: Request) {
     console.log('OPENAI_API_KEY:', openAiKey ? '*** (présente)' : 'manquante');
     
     if (!openAiKey) {
-      console.error('ERREUR: La clé API OpenAI n\'est pas configurée');
+      const errorMessage = 'ERREUR: La clé API OpenAI n\'est pas configurée';
+      console.error(errorMessage);
       console.log('Variables d\'environnement disponibles:', Object.keys(process.env).join(', '));
+      
+      return new NextResponse(
+        JSON.stringify({ 
+          error: errorMessage,
+          details: 'Veuillez configurer la variable d\'environnement OPENAI_API_KEY'
+        }), 
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
     }
     
-    if (!openAiKey) {
-      throw new Error('La clé API OpenAI n\'est pas configurée');
-    }
+    // Configuration du client OpenAI avec la clé API
+    const openai = new OpenAI({
+      apiKey: openAiKey,
+      timeout: 120000, // 120 secondes de timeout
+    });
     
     // Vérifier que la requête contient des données JSON
-    let requestBody;
+    let requestBody: GenerateRequest;
     try {
       requestBody = await request.json();
       console.log('Corps de la requête reçu:', JSON.stringify(requestBody, null, 2));
-    } catch (parseError) {
-      console.error('Erreur lors de l\'analyse du corps de la requête:', parseError);
-      throw new Error('Format de requête invalide');
+    } catch (error) {
+      console.error('Erreur lors de la lecture du corps de la requête:', error);
+      return new NextResponse(
+        JSON.stringify({ 
+          error: 'Format de requête invalide',
+          details: 'Le corps de la requête doit être au format JSON'
+        }), 
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
     }
     
     const { description, jewelryType, material, style } = requestBody as GenerateRequest;
     
     // Valider les données
     if (!description?.trim() || !jewelryType || !material || !style) {
-      throw new Error('Tous les champs sont requis');
+      return new NextResponse(
+        JSON.stringify({ 
+          error: 'Données manquantes',
+          details: 'Tous les champs sont requis (description, jewelryType, material, style)'
+        }), 
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
     }
     
     console.log('Données reçues:', { description, jewelryType, material, style });
     
-    // Créer un prompt détaillé
-    const materialInEnglish = material === 'or' ? 'gold' : material;
-    const prompt = `High-end product photography of a modern ${materialInEnglish} ${jewelryType} with detailed ${description} motifs, shown from three different angles in the same image — top view, side view, and perspective view. The ${jewelryType} features ${style} design and intricate ${description} detailing. Set on a dark velvet background with soft studio lighting, shallow depth of field, and realistic ${materialInEnglish} textures. Ultra-realistic render, 8K resolution, luxury jewelry showcase style.`;
-
-    // Appeler l'API OpenAI
-    console.log('=== APPEL OPENAI ===');
-    console.log('Modèle: gpt-image-1');
-    console.log('Taille: 1024x1024');
-    console.log('Prompt (tronqué):', prompt.substring(0, 200) + '...');
-    
     try {
-      // 1. Appel à l'API OpenAI
-      console.log('Initialisation de la requête vers OpenAI...');
-      const startTime = Date.now();
+      // Créer un prompt détaillé
+      const materialInEnglish = material === 'or' ? 'gold' : material;
+      const prompt = `High-end product photography of a modern ${materialInEnglish} ${jewelryType} with detailed ${description} motifs, shown from three different angles in the same image — top view, side view, and perspective view. The ${jewelryType} features ${style} design and intricate ${description} detailing. Set on a dark velvet background with soft studio lighting, shallow depth of field, and realistic ${materialInEnglish} textures. Ultra-realistic render, 8K resolution, luxury jewelry showcase style.`;
+
+      // Appeler l'API OpenAI
+      console.log('=== APPEL OPENAI ===');
+      console.log('Modèle: gpt-image-1');
+      console.log('Taille: 1024x1024');
+      console.log('Prompt (tronqué):', prompt.substring(0, 200) + '...');
       
-      // Utilisation du modèle gpt-image-1 comme spécifié
-      console.log('Envoi de la requête à OpenAI avec le prompt:', prompt);
-      const requestData: Parameters<typeof openai.images.generate>[0] = {
+      // Limiter la taille du prompt si nécessaire (4000 caractères max)
+      const maxPromptLength = 4000;
+      const truncatedPrompt = prompt.length > maxPromptLength 
+        ? prompt.substring(0, maxPromptLength) 
+        : prompt;
+      
+      if (prompt.length > maxPromptLength) {
+        console.log('Le prompt a été tronqué à', maxPromptLength, 'caractères');
+      }
+      
+      const requestData: OpenAI.ImageGenerateParams = {
         model: "gpt-image-1",
-        prompt: prompt,
+        prompt: truncatedPrompt,
         n: 1,
-        size: "1024x1024" as const
+        size: "1024x1024",
+        response_format: 'b64_json'
       };
-      console.log('Données de la requête OpenAI:', JSON.stringify(requestData, null, 2));
       
-      console.log('Envoi de la requête à OpenAI...');
-      console.log('URL de l\'API OpenAI:', openai.baseURL);
-      console.log('Options de la requête:', {
-        method: 'POST',
-        url: '/v1/images/generations',
-        data: requestData
+      console.log('Envoi de la requête à OpenAI avec le prompt (tronqué):', 
+        truncatedPrompt.substring(0, 100) + '...');
+      
+      const startTime = Date.now();
+      const response = await openai.images.generate(requestData, {
+        timeout: 120000 // 120 secondes de timeout
       });
       
-      const response = await openai.images.generate(requestData);
-      console.log('Réponse brute de l\'API OpenAI:', JSON.stringify(response, null, 2));
-      
       const endTime = Date.now();
-      console.log(`Réponse reçue d'OpenAI en ${endTime - startTime}ms`);
+      console.log(`Appel à l'API OpenAI terminé en ${(endTime - startTime) / 1000} secondes`);
       
-      console.log('Réponse de l\'API OpenAI reçue:', JSON.stringify({
-        hasData: !!response.data,
-        dataLength: response.data?.length,
-        firstItemKeys: response.data?.[0] ? Object.keys(response.data[0]) : []
-      }, null, 2));
-      
-      // 2. Vérification de la réponse
-      if (!response || !response.data || response.data.length === 0) {
-        console.error('Réponse invalide de l\'API OpenAI:', JSON.stringify(response, null, 2));
-        throw new Error('Réponse invalide de l\'API OpenAI');
+      // Vérifier si la réponse contient des données
+      if (!response.data || response.data.length === 0) {
+        console.error('Aucune donnée dans la réponse de l\'API OpenAI');
+        return new NextResponse(
+          JSON.stringify({ 
+            error: 'Aucune image générée',
+            details: 'La réponse de l\'API OpenAI ne contient pas de données d\'image'
+          }), 
+          { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
       }
       
       const imageData = response.data[0];
       
-      if (!imageData.b64_json) {
-        console.error('Format de réponse inattendu:', JSON.stringify(imageData, null, 2));
-        throw new Error('Format de réponse inattendu de l\'API');
+      // Vérifier si l'image est en base64
+      if (imageData.b64_json) {
+        console.log('Image reçue en base64, longueur:', imageData.b64_json.length);
+        
+        // Retourner l'image en base64
+        return new NextResponse(
+          JSON.stringify({ 
+            image: `data:image/png;base64,${imageData.b64_json}`,
+            model: "gpt-image-1",
+            prompt: truncatedPrompt
+          }), 
+          { 
+            status: 200, 
+            headers: { 
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-store, max-age=0'
+            } 
+          }
+        );
+      } 
+      // Si l'image est une URL au lieu de base64 (ce cas ne devrait normalement pas arriver avec response_format: 'b64_json')
+      else if ('url' in imageData && imageData.url) {
+        console.log('URL de l\'image reçue:', imageData.url);
+        
+        // Télécharger l'image et la convertir en base64
+        try {
+          const imageResponse = await fetch(imageData.url);
+          const arrayBuffer = await imageResponse.arrayBuffer();
+          const base64Image = Buffer.from(arrayBuffer).toString('base64');
+          
+          return new NextResponse(
+            JSON.stringify({ 
+              image: `data:image/png;base64,${base64Image}`,
+              model: "gpt-image-1",
+              prompt: truncatedPrompt
+            }), 
+            { 
+              status: 200, 
+              headers: { 
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-store, max-age=0'
+              } 
+            }
+          );
+        } catch (fetchError) {
+          console.error('Erreur lors du téléchargement de l\'image:', fetchError);
+          return new NextResponse(
+            JSON.stringify({ 
+              error: 'Erreur lors du téléchargement de l\'image',
+              details: fetchError instanceof Error ? fetchError.message : 'Erreur inconnue'
+            }), 
+            { status: 500, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+      } else {
+        console.error('Format de réponse inattendu de l\'API OpenAI:', response);
+        return new NextResponse(
+          JSON.stringify({ 
+            error: 'Format de réponse inattendu',
+            details: 'La réponse de l\'API OpenAI ne contient ni données binaires ni URL d\'image'
+          }), 
+          { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
       }
       
-      console.log('Données d\'image reçues avec succès, taille du b64_json:', 
-        imageData.b64_json.length, 'caractères');
-        
-      // 3. Retour de la réponse formatée
-      return new NextResponse(
-        JSON.stringify({ 
-          success: true,
-          b64Image: imageData.b64_json,
-          mimeType: 'image/png',
-          timestamp: new Date().toISOString()
-        }), 
-        { 
-          status: 200, 
-          headers: { 
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store, max-age=0'
-          } 
-        }
-      );
+    } catch (error) {
+      console.error('Erreur lors de l\'appel à l\'API OpenAI:', error);
       
-    } catch (error: unknown) {
-      // Gestion des erreurs détaillée
-      let errorMessage = 'Une erreur inconnue est survenue';
-      let errorDetails: Record<string, any> = { unknownError: true };
+      let errorMessage = 'Erreur inconnue';
+      let errorDetails: Record<string, any> = {};
       
       if (error instanceof Error) {
-        const errorObj = error as Error & {
-          code?: string;
-          status?: number;
-          response?: {
-            status: number;
-            statusText: string;
-            headers: Record<string, string>;
-            data: any;
-          };
-        };
-        
-        errorMessage = errorObj.message || errorMessage;
+        errorMessage = error.message;
         errorDetails = {
-          name: errorObj.name,
-          message: errorObj.message,
-          stack: errorObj.stack,
-          code: errorObj.code,
-          status: errorObj.status,
-          response: errorObj.response ? {
-            status: errorObj.response.status,
-            statusText: errorObj.response.statusText,
-            headers: errorObj.response.headers,
-            data: errorObj.response.data
-          } : undefined
+          name: error.name,
+          stack: error.stack,
+          ...(error as any).response?.data
         };
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      } else if (error && typeof error === 'object' && 'toString' in error) {
-        errorMessage = error.toString();
       }
       
-      console.error('Erreur lors de l\'appel à l\'API OpenAI:', errorMessage, '\nDétails:', errorDetails);
-      
-      // Renvoyer une réponse d'erreur structurée
       return new NextResponse(
-        JSON.stringify({ 
-          success: false,
+        JSON.stringify({
           error: 'Erreur lors de la génération de l\'image',
           details: errorMessage,
-          timestamp: new Date().toISOString()
-        }), 
-        { 
-          status: 500, 
-          headers: { 
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store, max-age=0'
-          } 
-        }
+          ...(Object.keys(errorDetails).length > 0 && { debug: errorDetails })
+        }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
       );
     }
     
-    // Retourner les données de l'image en base64
-    // Cette partie du code n'est plus accessible car nous avons déjà retourné une réponse
-    // dans le bloc try ou catch ci-dessus
-    return new NextResponse(
-      JSON.stringify({ 
-        success: false,
-        error: 'Une erreur inattendue est survenue',
-        details: 'La fonction a atteint une partie du code qui ne devrait pas être exécutée',
-        timestamp: new Date().toISOString()
-      }), 
-      { 
-        status: 500, 
-        headers: { 
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store, max-age=0'
-        } 
-      }
-    );
-    
   } catch (error) {
-    console.error('Erreur dans la route API:', error);
+    console.error('Erreur inattendue dans la route API:', error);
     
     return new NextResponse(
       JSON.stringify({ 
-        success: false,
         error: 'Erreur serveur',
         details: error instanceof Error ? error.message : 'Erreur inconnue',
         timestamp: new Date().toISOString()
       }), 
       { 
-        status: error instanceof Error && 'status' in error ? Number(error.status) : 500, 
+        status: 500, 
         headers: { 
           'Content-Type': 'application/json',
           'Cache-Control': 'no-store, max-age=0'
