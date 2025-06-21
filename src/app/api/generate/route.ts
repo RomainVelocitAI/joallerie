@@ -65,13 +65,17 @@ export async function POST(request: Request) {
       const startTime = Date.now();
       
       // Utilisation du modèle gpt-image-1 comme spécifié
-      const response = await openai.images.generate({
+      console.log('Envoi de la requête à OpenAI avec le prompt:', prompt);
+      const requestData: Parameters<typeof openai.images.generate>[0] = {
         model: "gpt-image-1",
         prompt: prompt,
         n: 1,
-        size: "1024x1024"
-        // Le modèle gpt-image-1 retourne toujours du b64_json par défaut
-      });
+        size: "1024x1024" as const
+      };
+      console.log('Données de la requête OpenAI:', JSON.stringify(requestData, null, 2));
+      
+      const response = await openai.images.generate(requestData);
+      console.log('Réponse brute de l\'API OpenAI:', JSON.stringify(response, null, 2));
       
       const endTime = Date.now();
       console.log(`Réponse reçue d'OpenAI en ${endTime - startTime}ms`);
