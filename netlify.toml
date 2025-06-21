@@ -43,14 +43,15 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-[functions]
-  # Augmenter le timeout à 30 secondes pour les appels API
+[[functions]]
+  # Configuration générale des fonctions
   node_bundler = "esbuild"
   external_node_modules = ["@netlify/plugin-nextjs"]
   included_files = [".next/**"]
-
-[[functions]]
-  function = ".next/server/app/api/generate/route.js"
-  node_bundler = "esbuild"
-  included_files = [".next/**"]
-  timeout = 120 # 2 minutes pour la génération d'images
+  
+  # Configuration spécifique pour la route de génération d'images
+  [[functions.rules]]
+    function = "/api/generate"
+    path = "/api/generate"
+    method = "POST"
+    timeout = 120 # 2 minutes pour la génération d'images
