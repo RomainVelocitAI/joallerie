@@ -20,11 +20,19 @@ const openai = new OpenAI({
 export async function POST(request: Request) {
   console.log('=== DÉBUT DE LA REQUÊTE ===');
   console.log('Environnement:', process.env.NODE_ENV);
+  console.log('URL de la requête:', request.url);
+  console.log('Méthode:', request.method);
+  console.log('En-têtes:', Object.fromEntries(request.headers.entries()));
   
   try {
     // Vérifier que la clé API est configurée
     const openAiKey = process.env.OPENAI_API_KEY;
     console.log('OPENAI_API_KEY:', openAiKey ? '*** (présente)' : 'manquante');
+    
+    if (!openAiKey) {
+      console.error('ERREUR: La clé API OpenAI n\'est pas configurée');
+      console.log('Variables d\'environnement disponibles:', Object.keys(process.env).join(', '));
+    }
     
     if (!openAiKey) {
       throw new Error('La clé API OpenAI n\'est pas configurée');
@@ -73,6 +81,14 @@ export async function POST(request: Request) {
         size: "1024x1024" as const
       };
       console.log('Données de la requête OpenAI:', JSON.stringify(requestData, null, 2));
+      
+      console.log('Envoi de la requête à OpenAI...');
+      console.log('URL de l\'API OpenAI:', openai.baseURL);
+      console.log('Options de la requête:', {
+        method: 'POST',
+        url: '/v1/images/generations',
+        data: requestData
+      });
       
       const response = await openai.images.generate(requestData);
       console.log('Réponse brute de l\'API OpenAI:', JSON.stringify(response, null, 2));
