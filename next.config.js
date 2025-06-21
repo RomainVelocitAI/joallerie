@@ -7,8 +7,6 @@ const nextConfig = {
   },
   // Désactive le cache des pages statiques pour éviter les problèmes de build
   generateEtags: false,
-  // Active le mode strict pour React
-  reactStrictMode: true,
   // Configuration pour les redirections et réécritures
   async redirects() {
     return [
@@ -41,28 +39,15 @@ const nextConfig = {
       },
     ];
   },
-  // Désactive le cache du système de fichiers pour le développement
-  onDemandEntries: {
-    maxInactiveAge: 25 * 1000,
-    pagesBufferLength: 2,
-  },
-  // Désactive le cache du système de fichiers pour la production
+  // Configuration pour le mode production
+  poweredByHeader: false,
+  // Optimisations
   experimental: {
-    // Optimisations pour Netlify
     optimizeCss: true,
     scrollRestoration: true,
-    // Désactive le cache des pages statiques
-    staticPageGenerationTimeout: 1000,
   },
+  // Configuration pour le build
+  staticPageGenerationTimeout: 1000,
 };
-
-// Configuration pour le mode production
-if (process.env.NODE_ENV === 'production') {
-  nextConfig.poweredByHeader = false;
-  nextConfig.devIndicators = {
-    buildActivity: false,
-  };
-  nextConfig.swcMinify = true;
-}
 
 module.exports = nextConfig;
