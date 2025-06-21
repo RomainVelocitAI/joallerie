@@ -152,15 +152,17 @@ export async function POST(request: Request) {
     }
     
     // Retourner les données de l'image en base64
+    // Cette partie du code n'est plus accessible car nous avons déjà retourné une réponse
+    // dans le bloc try ou catch ci-dessus
     return new NextResponse(
       JSON.stringify({ 
-        success: true,
-        b64Image: response.data[0].b64_json,
-        mimeType: 'image/png', // Par défaut, l'API renvoie du PNG en base64
+        success: false,
+        error: 'Une erreur inattendue est survenue',
+        details: 'La fonction a atteint une partie du code qui ne devrait pas être exécutée',
         timestamp: new Date().toISOString()
       }), 
       { 
-        status: 200, 
+        status: 500, 
         headers: { 
           'Content-Type': 'application/json',
           'Cache-Control': 'no-store, max-age=0'
