@@ -13,19 +13,19 @@
   NEXT_PUBLIC_API_URL = "/api"
 
 [context.production]
-  command = "npm install --legacy-peer-deps --include=dev && npm run build"
+  command = "npm install --legacy-peer-deps --include=dev && npm run build:prod"
   [context.production.environment]
     NODE_ENV = "production"
     NPM_FLAGS = "--legacy-peer-deps --include=dev"
 
 [context.deploy-preview]
-  command = "npm install --legacy-peer-deps --include=dev && npm run build"
+  command = "npm install --legacy-peer-deps --include=dev && npm run build:prod"
   [context.deploy-preview.environment]
     NODE_ENV = "production"
     NPM_FLAGS = "--legacy-peer-deps --include=dev"
 
 [context.branch-deploy]
-  command = "npm install --legacy-peer-deps --include=dev && npm run build"
+  command = "npm install --legacy-peer-deps --include=dev && npm run build:prod"
   [context.branch-deploy.environment]
     NODE_ENV = "production"
     NPM_FLAGS = "--legacy-peer-deps --include=dev"
