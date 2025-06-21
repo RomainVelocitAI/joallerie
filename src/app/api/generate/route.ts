@@ -3,121 +3,78 @@ import OpenAI from 'openai';
 
 // Interface pour la requête
 interface GenerateRequest {
-  prompt: string;
+  description: string;
   jewelryType: string;
   material: string;
   style: string;
 }
 
-// Interface pour la réponse de l'API
-interface GeneratedImage {
-  url: string;
-  description?: string;
-}
-
-// Cette route est sécurisée et ne s'exécute que côté serveur
-export const dynamic = 'force-dynamic';
-
-// Initialiser le client OpenAI avec la clé API
+// Initialiser le client OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
 });
 
-// Fonction pour générer une image avec GPT-4 Vision
-async function generateWithGPT4Vision(prompt: string, jewelryType: string, material: string, style: string): Promise<string> {
+// Fonction pour générer une image avec l'API de génération d'images
+async function generateImage(prompt: string): Promise<string> {
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4-vision-preview',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { 
-              type: 'text', 
-              text: `Crée une image détaillée d'un bijou avec les caractéristiques suivantes:\n` +
-                `- Type: ${jewelryType}\n` +
-                `- Matériau: ${material}\n` +
-                `- Style: ${style}\n` +
-                `- Détails: ${prompt}\n\n` +
-                `L'image doit être réaliste et de haute qualité, montrant le bijou sous différents angles.` 
-            }
-          ]
-        }
-      ],
-      max_tokens: 1000
+    // Appeler l'API de génération d'images
+    const response = await openai.images.generate({
+      model: "gpt-image-1",
+      prompt: prompt,
+      n: 1,
+      size: "1024x1024"
     });
 
-    // Dans une vraie implémentation, vous devrez gérer la réponse pour extraire l'URL de l'image
-    // Pour l'instant, nous retournons une URL factice
-    return 'https://example.com/generated-image.jpg';
+    // Vérifier que la réponse contient bien des données
+    if (!response.data || response.data.length === 0) {
+      throw new Error('Aucune donnée reçue de l\'API de génération d\'images');
+    }
+
+    const imageUrl = response.data[0]?.url;
+
+    if (!imageUrl) {
+      throw new Error('Aucune URL d\'image reçue de l\'API de génération d\'images');
+    }
+    
+    return imageUrl;
   } catch (error) {
-    console.error('Erreur lors de la génération avec GPT-4 Vision:', error);
-    throw new Error('Échec de la génération d\'image avec GPT-4 Vision');
+    console.error('Erreur lors de la génération d\'image:', error);
+    throw new Error('Échec de la génération d\'image');
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    // Valider et parser le corps de la requête
-    let body: GenerateRequest;
-    try {
-      body = await req.json();
-    } catch (error) {
-      return new NextResponse(
-        JSON.stringify({ error: 'Le corps de la requête doit être un JSON valide' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+    const { description, jewelryType, material, style } = (await request.json()) as GenerateRequest;
+
+    if (!description || !jewelryType || !material || !style) {
+      return NextResponse.json(
+        { error: 'Tous les champs sont requis' },
+        { status: 400 }
       );
     }
 
-    const { prompt, jewelryType, material, style } = body;
+    // Construire le prompt détaillé
+    const prompt = `Crée une image haute qualité d'un bijou de type ${jewelryType} en ${material} de style ${style}. Détails : ${description}. L'image doit être réaliste et professionnelle.`;
+    
+    // Générer l'image
+    const imageUrl = await generateImage(prompt);
 
-    // Validation des entrées
-    if (!prompt || typeof prompt !== 'string') {
-      return new NextResponse(
-        JSON.stringify({ error: 'La description est requise et doit être une chaîne de caractères' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+    // Retourner la réponse avec l'URL de l'image générée
+    return NextResponse.json({ 
+      success: true, 
+      imageUrl,
+      description: prompt
+    });
 
-    // Vérifier que la clé API est configurée
-    if (!process.env.OPENAI_API_KEY) {
-      console.error('OPENAI_API_KEY non configurée');
-      return new NextResponse(
-        JSON.stringify({ error: 'Erreur de configuration du serveur' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    try {
-      // Générer l'image avec GPT-4 Vision
-      const imageUrl = await generateWithGPT4Vision(prompt, jewelryType, material, style);
-      
-      // Retourner la réponse formatée
-      const images: GeneratedImage[] = [{
-        url: imageUrl,
-        description: `${jewelryType} en ${material} de style ${style}: ${prompt}`
-      }];
-
-      return new NextResponse(
-        JSON.stringify(images),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      );
-    } catch (error) {
-      console.error('Erreur lors de la génération avec GPT-4 Vision:', error);
-      return new NextResponse(
-        JSON.stringify({ 
-          error: error instanceof Error ? error.message : 'Échec de la génération d\'image avec GPT-4 Vision'
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
   } catch (error) {
-    console.error('Erreur lors du traitement de la requête:', error);
-    return new NextResponse(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Une erreur inattendue est survenue' 
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    console.error('Erreur lors de la génération d\'image :', error);
+    return NextResponse.json(
+      { 
+        error: 'Erreur lors de la génération de l\'image',
+        details: error instanceof Error ? error.message : 'Erreur inconnue'
+      },
+      { status: 500 }
     );
   }
 }
