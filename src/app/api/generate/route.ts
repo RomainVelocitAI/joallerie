@@ -44,12 +44,8 @@ export async function POST(request: Request) {
       model: "gpt-image-1",
       prompt: prompt,
       n: 1,
-      size: "1024x1024",
-      response_format: "b64_json"
-    }, {
-      headers: {
-        'OpenAI-Beta': 'assistants=v2'
-      }
+      size: "1024x1024"
+      // Le modèle gpt-image-1 retourne toujours du b64_json par défaut
     });
     
     console.log('Réponse de l\'API OpenAI reçue');
