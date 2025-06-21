@@ -1,38 +1,16 @@
 [build]
-  command = "npm install --legacy-peer-deps --include=dev && npm run build:prod"
+  command = "npm install --legacy-peer-deps && npm run build"
   publish = ".next"
 
 [build.environment]
   NODE_VERSION = "18.x"
   NPM_VERSION = "9.x"
   NPM_FLAGS = "--legacy-peer-deps"
-  NODE_ENV = "development"
-  # Mettez à jour cette URL avec votre domaine Netlify
+  NODE_ENV = "production"
   NEXT_PUBLIC_SITE_URL = "https://joaillerie.netlify.app"
   NEXT_PUBLIC_DEBUG = "false"
   NEXT_PUBLIC_DEFAULT_THEME = "system"
   NEXT_PUBLIC_API_URL = "/api"
-  # La clé API OpenAI doit être définie dans les paramètres du site Netlify (Environment Variables)
-  # Ne la mettez pas directement dans ce fichier qui est versionné
-  # OPENAI_API_KEY = "votre_cle_api_openai_ici"
-
-[context.production]
-  command = "npm install --legacy-peer-deps --include=dev && npm run build:prod"
-  [context.production.environment]
-    NODE_ENV = "production"
-    NPM_FLAGS = "--legacy-peer-deps --include=dev"
-
-[context.deploy-preview]
-  command = "npm install --legacy-peer-deps --include=dev && npm run build:prod"
-  [context.deploy-preview.environment]
-    NODE_ENV = "production"
-    NPM_FLAGS = "--legacy-peer-deps --include=dev"
-
-[context.branch-deploy]
-  command = "npm install --legacy-peer-deps --include=dev && npm run build:prod"
-  [context.branch-deploy.environment]
-    NODE_ENV = "production"
-    NPM_FLAGS = "--legacy-peer-deps --include=dev"
 
 [dev]
   framework = "next"
@@ -48,10 +26,11 @@
   node_bundler = "esbuild"
   external_node_modules = ["@netlify/plugin-nextjs"]
   included_files = [".next/**"]
-  
-  # Configuration spécifique pour la fonction de génération d'images
-  [functions.generate]
-    timeout = 120  # 2 minutes
+
+# Configuration spécifique pour la fonction de génération d'images
+[functions.generate]
+  node_bundler = "esbuild"
+  timeout = 180  # 3 minutes
 
 # Redirections pour l'API
 [[redirects]]
@@ -59,10 +38,4 @@
   to = "/.netlify/functions/generate"
   status = 200
   force = true
-
-# Redirection pour les autres routes API
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-  force = true
+  headers = {X-From = "Netlify"}
