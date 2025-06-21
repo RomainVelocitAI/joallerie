@@ -37,12 +37,15 @@ async function generateImage(prompt: string): Promise<string> {
       })
     });
 
+    const responseData = await response.json();
+    
+    console.log('Réponse brute de l\'API:', JSON.stringify(responseData, null, 2));
+    
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Erreur API: ${JSON.stringify(errorData)}`);
+      throw new Error(`Erreur API: ${JSON.stringify(responseData)}`);
     }
 
-    const data = await response.json();
+    const data = responseData;
     
     // Vérifier que la réponse contient bien des données
     if (!data.data || data.data.length === 0) {
@@ -100,10 +103,15 @@ export async function POST(request: Request) {
     }
 
     // Construire le prompt détaillé
-    const prompt = `Crée une image haute qualité d'un bijou de type ${jewelryType} en ${material} de style ${style}. Détails : ${description}. L'image doit être réaliste et professionnelle, avec un éclairage de studio et un fond neutre.`;
+    const materialInEnglish = material === 'or' ? 'gold' : material;
+    const prompt = `High-end product photography of a modern ${materialInEnglish} ${jewelryType} with detailed ${description} motifs, shown from three different angles in the same image — top view, side view, and perspective view. The ${jewelryType} features ${style} design and intricate ${description} detailing. Set on a dark velvet background with soft studio lighting, shallow depth of field, and realistic ${materialInEnglish} textures. Ultra-realistic render, 8K resolution, luxury jewelry showcase style.`;
+    
+    console.log('Prompt envoyé à l\'API:', prompt);
     
     // Générer l'image
     const imageUrl = await generateImage(prompt);
+    
+    console.log('Réponse de l\'API:', { imageUrl: imageUrl ? 'Reçue' : 'Vide' });
 
     // Retourner la réponse avec l'URL de l'image générée
     return NextResponse.json({ 
