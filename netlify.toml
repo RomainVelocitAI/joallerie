@@ -48,8 +48,11 @@
   node_bundler = "esbuild"
   external_node_modules = ["@netlify/plugin-nextjs"]
   included_files = [".next/**"]
-  # Configuration du timeout global pour toutes les fonctions (en secondes)
-  timeout = 120
+  
+  # Configuration du timeout global pour toutes les fonctions
+  [functions.timeout]
+    function = "*"
+    timeout = 120  # 2 minutes
 
 # Redirection pour les fonctions API
 [[redirects]]
@@ -63,4 +66,7 @@
   node_bundler = "esbuild"
   external_node_modules = ["@netlify/plugin-nextjs"]
   included_files = [".next/**"]
-  timeout = 120 # 2 minutes pour la génération d'images
+  
+  [functions.generate.timeout]
+    function = "generate"
+    timeout = 120  # 2 minutes pour la génération d'images
