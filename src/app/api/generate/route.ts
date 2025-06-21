@@ -17,93 +17,52 @@ const openai = new OpenAI({
 // Fonction pour générer une image avec l'API de génération d'images
 async function generateImage(prompt: string): Promise<string> {
   try {
-    // Construction du corps de la requête selon la documentation officielle
-    const requestBody = {
+    console.log('Début de la génération d\'image avec le prompt:', prompt);
+    
+    // Utilisation du SDK OpenAI officiel
+    const response = await openai.images.generate({
       model: "gpt-image-1",
       prompt: prompt,
       n: 1,
       size: "1024x1024",
-      background: "auto",
-      output_format: "webp",
-      output_compression: 100,
-      quality: "high",
-      moderation: "auto"
-    };
-    
-    console.log('Envoi de la requête à l\'API OpenAI:', JSON.stringify(requestBody, null, 2));
-    
-    // Appeler directement l'API REST d'OpenAI avec le modèle gpt-image-1
-    const response = await fetch('https://api.openai.com/v1/images/generations', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'OpenAI-Beta': 'assistants=v2' // Nécessaire pour gpt-image-1
-      },
-      body: JSON.stringify(requestBody)
+      response_format: "b64_json"
     });
-    
-    console.log('Statut de la réponse:', response.status, response.statusText);
-    
-    // Afficher les en-têtes de la réponse
-    const responseHeaders: Record<string, string> = {};
-    response.headers.forEach((value, key) => {
-      responseHeaders[key] = value;
-    });
-    console.log('En-têtes de la réponse:', JSON.stringify(responseHeaders, null, 2));
-    
-    // Vérifier si la clé API est correctement configurée
-    if (response.status === 401) {
-      throw new Error('Clé API OpenAI invalide ou manquante. Vérifiez votre configuration.');
-    }
-    
-    // Lire le corps de la réponse comme texte d'abord
-    const responseText = await response.text();
-    console.log('Corps de la réponse (texte brut):', responseText);
-    
-    // Essayer de parser le JSON
-    let responseData;
-    try {
-      responseData = JSON.parse(responseText);
-      console.log('Réponse parsée de l\'API:', JSON.stringify(responseData, null, 2));
-    } catch (parseError) {
-      console.error('Erreur lors du parsing de la réponse:', parseError);
-      throw new Error(`Réponse non valide de l'API: ${responseText.substring(0, 200)}...`);
-    }
-    
-    if (!response.ok) {
-      // Si l'API retourne une erreur avec un message, l'utiliser
-      if (responseData.error && responseData.error.message) {
-        throw new Error(`Erreur API (${response.status}): ${responseData.error.message}`);
-      }
-      throw new Error(`Erreur API (${response.status}): ${JSON.stringify(responseData)}`);
-    }
 
-    const data = responseData;
+    console.log('Réponse de l\'API OpenAI:', JSON.stringify(response, null, 2));
     
     // Vérifier que la réponse contient bien des données
-    if (!data.data || data.data.length === 0) {
+    if (!response.data || response.data.length === 0) {
       throw new Error('Aucune donnée reçue de l\'API de génération d\'images');
     }
 
     // Récupérer les données binaires de l'image
-    const imageData = data.data[0];
+    const imageData = response.data[0];
     
-    // Vérifier si on a des données binaires (cas de gpt-image-1)
-    if (imageData.b64_json) {
-      // Convertir les données base64 en URL de données
-      return `data:image/webp;base64,${imageData.b64_json}`;
+    // Vérifier si on a des données binaires
+    if (!imageData.b64_json) {
+      throw new Error('Format de réponse inattendu: données binaires manquantes');
     }
     
-    // Sinon, essayer de récupérer l'URL (pour compatibilité avec d'autres modèles)
-    if (imageData.url) {
-      return imageData.url;
-    }
-    
-    throw new Error('Format de réponse inattendu de l\'API de génération d\'images');
+    // Convertir les données base64 en URL de données
+    return `data:image/webp;base64,${imageData.b64_json}`;
   } catch (error) {
     console.error('Erreur lors de la génération d\'image:', error);
-    throw new Error('Échec de la génération d\'image: ' + (error as Error).message);
+    
+    // Extraire le message d'erreur détaillé
+    let errorMessage = 'Échec de la génération d\'image';
+    if (error instanceof Error) {
+      errorMessage += `: ${error.message}`;
+      
+      // Si c'est une erreur de l'API OpenAI, essayer d'extraire plus de détails
+      if ('error' in error && typeof error.error === 'object' && error.error !== null) {
+        const apiError = error.error as Record<string, unknown>;
+        if ('message' in apiError) {
+          errorMessage += ` (Détails: ${String(apiError.message)})`;
+        }
+      }
+    }
+    
+    throw new Error(errorMessage);
   }
 }
 
