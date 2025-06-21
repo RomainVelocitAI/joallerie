@@ -7,10 +7,14 @@
   NPM_VERSION = "9.x"
   NPM_FLAGS = "--legacy-peer-deps"
   NODE_ENV = "development"
-  NEXT_PUBLIC_SITE_URL = "https://votre-nom-de-domaine.netlify.app"
+  # Mettez à jour cette URL avec votre domaine Netlify
+  NEXT_PUBLIC_SITE_URL = "https://joaillerie.netlify.app"
   NEXT_PUBLIC_DEBUG = "false"
   NEXT_PUBLIC_DEFAULT_THEME = "system"
   NEXT_PUBLIC_API_URL = "/api"
+  # La clé API OpenAI doit être définie dans les paramètres du site Netlify (Environment Variables)
+  # Ne la mettez pas directement dans ce fichier qui est versionné
+  # OPENAI_API_KEY = "votre_cle_api_openai_ici"
 
 [context.production]
   command = "npm install --legacy-peer-deps --include=dev && npm run build:prod"
