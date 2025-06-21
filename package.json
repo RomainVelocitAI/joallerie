@@ -12,7 +12,7 @@
     "lint:fix": "next lint --fix && eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit",
-    "prepare": "husky install",
+    "prepare": "node -e \"if (process.env.CI !== 'true' && process.env.HUSKY !== '0' && require('fs').existsSync('package.json') && require('fs').existsSync('node_modules/husky')) require('child_process').execSync('npx husky install')\"",
     "test": "jest --config=jest.config.ts",
     "test:watch": "jest --watch --config=jest.config.ts",
     "test:coverage": "jest --coverage --config=jest.config.ts"
