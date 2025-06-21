@@ -49,50 +49,75 @@ export default function JewelryGenerator() {
       return;
     }
 
-    console.log('Données du formulaire:', {
+    const formData = {
       description,
       jewelryType,
       material,
       style
-    });
+    };
+
+    console.log('Données du formulaire:', formData);
 
     setIsGenerating(true);
     
     try {
+      console.log('Envoi de la requête à /api/generate...');
       // Appel à l'API pour générer l'image
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          description,
-          jewelryType,
-          material,
-          style,
-        }),
+        body: JSON.stringify(formData),
       });
+
+      console.log('Réponse reçue, status:', response.status);
+      
+      // Essayer de lire le corps de la réponse dans tous les cas
+      let responseText;
+      try {
+        responseText = await response.text();
+        console.log('Réponse brute:', responseText);
+      } catch (e) {
+        console.error('Impossible de lire le corps de la réponse:', e);
+      }
 
       if (!response.ok) {
         let errorData;
         try {
-          errorData = await response.json();
-          console.error('Erreur API:', errorData);
+          errorData = responseText ? JSON.parse(responseText) : null;
+          console.error('Erreur API détaillée:', {
+            status: response.status,
+            statusText: response.statusText,
+            errorData
+          });
         } catch (e) {
-          console.error('Impossible de parser la réponse d\'erreur:', await response.text());
+          console.error('Impossible de parser la réponse d\'erreur:', responseText);
           throw new Error(`Erreur ${response.status}: ${response.statusText}`);
         }
         
-        const error = new Error(errorData.error || 'Échec de la génération d\'image');
+        const errorMessage = errorData?.error || 'Échec de la génération d\'image';
+        const error = new Error(errorMessage);
         // Ajouter les détails supplémentaires à l'erreur
-        Object.assign(error, { response: errorData });
+        Object.assign(error, { 
+          response: errorData,
+          status: response.status,
+          statusText: response.statusText
+        });
         throw error;
       }
 
-      const data = await response.json();
+      let data;
+      try {
+        data = responseText ? JSON.parse(responseText) : null;
+        console.log('Données de la réponse:', data);
+      } catch (e) {
+        console.error('Erreur lors du parsing de la réponse:', e);
+        throw new Error('Format de réponse invalide');
+      }
 
-      if (!data.success || !data.imageUrl) {
-        throw new Error(data.error || 'Erreur lors de la génération de l\'image');
+      if (!data || !data.success) {
+        throw new Error(data?.error || 'Erreur inconnue lors de la génération');
       }
 
       // Mettre à jour l'état avec la nouvelle image
