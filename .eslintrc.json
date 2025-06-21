@@ -1,23 +1,60 @@
 {
+  "root": true,
+  "env": {
+    "browser": true,
+    "es2021": true,
+    "node": true,
+    "jest": true
+  },
   "extends": [
     "next/core-web-vitals",
     "eslint:recommended",
-    "plugin:@typescript-eslint/recommended"
+    "plugin:@typescript-eslint/recommended",
+    "plugin:react/recommended",
+    "plugin:react-hooks/recommended"
   ],
   "parser": "@typescript-eslint/parser",
-  "plugins": ["@typescript-eslint", "simple-import-sort"],
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module",
+    "ecmaFeatures": {
+      "jsx": true
+    },
+    "project": "./tsconfig.json"
+  },
+  "plugins": [
+    "@typescript-eslint",
+    "react",
+    "react-hooks",
+    "simple-import-sort"
+  ],
   "rules": {
+    // Désactive les règles de base qui entrent en conflit avec TypeScript
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-redeclare": "off",
+    "@typescript-eslint/no-redeclare": "error",
+    
+    // Règles React
     "react/react-in-jsx-scope": "off",
     "react/prop-types": "off",
     "react-hooks/rules-of-hooks": "error",
     "react-hooks/exhaustive-deps": "warn",
+    "react/no-unescaped-entities": "warn",
+    
+    // Règles TypeScript
     "@typescript-eslint/explicit-module-boundary-types": "off",
-    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
     "@typescript-eslint/no-explicit-any": "warn",
+    
+    // Règles d'import
     "simple-import-sort/imports": "warn",
     "simple-import-sort/exports": "warn",
-    "react/no-unescaped-entities": "warn",
-    "@next/next/no-img-element": "warn"
+    
+    // Règles Next.js
+    "@next/next/no-img-element": "warn",
+    
+    // Autres règles
+    "no-console": "warn"
   },
   "settings": {
     "react": {
@@ -25,6 +62,9 @@
     },
     "next": {
       "rootDir": ["src/"]
+    },
+    "import/resolver": {
+      "typescript": {}
     }
   },
   "overrides": [
@@ -32,6 +72,9 @@
       "files": ["**/*.test.ts", "**/*.test.tsx"],
       "env": {
         "jest": true
+      },
+      "rules": {
+        "@typescript-eslint/no-non-null-assertion": "off"
       }
     },
     {

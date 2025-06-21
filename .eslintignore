@@ -1,37 +1,29 @@
 # Dependencies
-node_modules
-.next
-out
-build
-dist
+node_modules/
+
+# Build outputs
+.next/
+out/
+build/
+dist/
 
 # Environment files
 .env*.local
 
 # Cache directories
-.cache
-coverage
-
-# Build files
-.next/
-out/
-build/
-
-# Test files
-__tests__/
-*.test.*
-*.spec.*
+.cache/
+coverage/
 
 # TypeScript declaration files
 *.d.ts
 
-# Config files
+# Configuration files
 *.config.js
 
-# Local Netlify folder
-.netlify
+# Netlify
+.netlify/
 
-# IDE and editor files
+# Editor directories and files
 .vscode/
 .idea/
 *.sublime-*

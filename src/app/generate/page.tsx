@@ -10,8 +10,7 @@ import { JewelryType, Material, Style, GeneratedImage } from '@/types/jewelry';
 interface JewelryImage {
   id: string;
   url: string;
-  prompt: string;
-  revised_prompt?: string;
+  description: string;
   selected: boolean;
 }
 
@@ -37,6 +36,13 @@ export default function JewelryGenerator() {
   const [generatedImages, setGeneratedImages] = useState<JewelryImage[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
+  const copyDescription = (description: string) => {
+    navigator.clipboard.writeText(description);
+    toast.success('Description copiée dans le presse-papier');
+  };
+
+
+
   const generateImages = async () => {
     if (!description.trim()) {
       toast.error('Veuillez entrer une description');
@@ -46,64 +52,76 @@ export default function JewelryGenerator() {
     setIsGenerating(true);
     
     try {
-      const prompt = `${jewelryType} en ${material} de style ${style}: ${description}`;
-      
-      const images = await api.generateImages({
-        prompt,
-        size: '1024x1024',
-        n: 4
+      // Appel à l'API pour générer l'image avec GPT-4 Vision
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: description,
+          jewelryType,
+          material,
+          style,
+        }),
       });
 
-      const newImages: JewelryImage[] = images.map((img, index) => ({
-        id: `img-${Date.now()}-${index}`,
-        url: img.url,
-        prompt: img.revised_prompt || prompt,
-        revised_prompt: img.revised_prompt,
-        selected: false
-      }));
-
-      setGeneratedImages(newImages);
-      
-      if (newImages.length > 0) {
-        selectImage(newImages[0].id);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Échec de la génération d\'image');
       }
+
+      const images = await response.json();
+
+      // Mettre à jour l'état avec la nouvelle image
+      const newImage: JewelryImage = {
+        id: `img-${Date.now()}`,
+        url: images[0].url,
+        description: images[0].description || `${jewelryType} en ${material} de style ${style}: ${description}`,
+        selected: true,
+      };
+
+      setGeneratedImages([newImage]);
+      setSelectedImage(newImage.url);
       
-      toast.success('Images générées avec succès');
+      toast.success('Image générée avec succès !');
     } catch (error) {
-      console.error('Erreur lors de la génération:', error);
-      toast.error(
-        error instanceof Error ? error.message : 'Une erreur est survenue lors de la génération des images'
-      );
+      console.error('Erreur lors de la génération de l\'image:', error);
+      toast.error(error instanceof Error ? error.message : 'Une erreur est survenue');
     } finally {
       setIsGenerating(false);
     }
   };
 
   const selectImage = (id: string) => {
-    setGeneratedImages(prev => 
-      prev.map(img => ({
+    setGeneratedImages(images =>
+      images.map(img => ({
         ...img,
         selected: img.id === id
       }))
     );
-    setSelectedImage(id);
+    const selected = generatedImages.find(img => img.id === id);
+    if (selected) {
+      setSelectedImage(selected.url);
+    }
   };
 
-  const downloadImage = async (url: string, prompt: string) => {
+  const downloadImage = async (image: JewelryImage) => {
+    if (!image.url) return;
+    
     try {
-      const response = await fetch(url);
+      const response = await fetch(image.url);
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = downloadUrl;
-      a.download = `bijou-${prompt.substring(0, 20).toLowerCase().replace(/\s+/g, '-')}.jpg`;
+      a.download = `bijou-${image.description.substring(0, 20).toLowerCase().replace(/\s+/g, '-')}.jpg`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(downloadUrl);
-      a.remove();
-      toast.success('Téléchargement démarré');
-    } catch (err) {
-      console.error('Erreur lors du téléchargement:', err);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Erreur lors du téléchargement:', error);
       toast.error('Erreur lors du téléchargement de l\'image');
     }
   };
@@ -229,13 +247,13 @@ export default function JewelryGenerator() {
                   >
                     <img 
                       src={image.url} 
-                      alt={image.prompt} 
+                      alt={image.description} 
                       className="w-full h-48 object-cover"
                       onError={handleImageError}
                     />
                     <div className="p-3">
                       <p className="text-xs text-muted-foreground truncate">
-                        {image.prompt}
+                        {image.description}
                       </p>
                     </div>
                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
@@ -245,10 +263,18 @@ export default function JewelryGenerator() {
                         className="rounded-full"
                         onClick={(e) => {
                           e.stopPropagation();
-                          downloadImage(image.url, image.prompt);
+                          downloadImage(image);
                         }}
                       >
                         <Download className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => copyDescription(image.description)}
+                        className="h-8 w-8"
+                      >
+                        <ImageIcon className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
@@ -276,7 +302,7 @@ export default function JewelryGenerator() {
                     onClick={() => {
                       const img = generatedImages.find(img => img.id === selectedImage);
                       if (img) {
-                        downloadImage(img.url, img.prompt);
+                        downloadImage(img);
                       }
                     }}
                   >
