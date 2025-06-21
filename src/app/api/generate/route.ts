@@ -1,6 +1,19 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
+// Interface pour les erreurs de l'API OpenAI
+interface OpenAIError extends Error {
+  response?: {
+    status: number;
+    statusText: string;
+    data: any;
+  };
+  error?: {
+    message: string;
+    type: string;
+  };
+}
+
 // Interface pour la requête
 interface GenerateRequest {
   description: string;
@@ -16,10 +29,12 @@ const openai = new OpenAI({
 
 // Fonction pour générer une image avec l'API de génération d'images
 async function generateImage(prompt: string): Promise<string> {
+  console.log('Début de la génération d\'image avec le prompt:', prompt);
+  
   try {
-    console.log('Début de la génération d\'image avec le prompt:', prompt);
-    
     // Utilisation du SDK OpenAI officiel
+    console.log('Appel de l\'API OpenAI avec le prompt:', prompt);
+    
     const response = await openai.images.generate({
       model: "gpt-image-1",
       prompt: prompt,
@@ -45,23 +60,43 @@ async function generateImage(prompt: string): Promise<string> {
     
     // Convertir les données base64 en URL de données
     return `data:image/webp;base64,${imageData.b64_json}`;
-  } catch (error) {
+    
+  } catch (error: unknown) {
     console.error('Erreur lors de la génération d\'image:', error);
     
-    // Extraire le message d'erreur détaillé
     let errorMessage = 'Échec de la génération d\'image';
-    if (error instanceof Error) {
-      errorMessage += `: ${error.message}`;
+    
+    if (typeof error === 'object' && error !== null) {
+      const openAIError = error as OpenAIError;
       
-      // Si c'est une erreur de l'API OpenAI, essayer d'extraire plus de détails
-      if ('error' in error && typeof error.error === 'object' && error.error !== null) {
-        const apiError = error.error as Record<string, unknown>;
-        if ('message' in apiError) {
-          errorMessage += ` (Détails: ${String(apiError.message)})`;
-        }
+      if ('message' in openAIError) {
+        errorMessage += `: ${openAIError.message}`;
       }
+      
+      // Si c'est une erreur de l'API OpenAI
+      if (openAIError.response) {
+        const { status, statusText, data } = openAIError.response;
+        
+        console.error('Détails de l\'erreur API:', {
+          status,
+          statusText,
+          data
+        });
+        
+        errorMessage += ` (Code: ${status} - ${statusText})`;
+        
+        if (data?.error?.message) {
+          errorMessage += ` - ${data.error.message}`;
+        }
+      } else if (openAIError.error) {
+        // Gestion des erreurs directes de l'API
+        errorMessage += ` - ${openAIError.error.message}`;
+      }
+    } else if (typeof error === 'string') {
+      errorMessage += `: ${error}`;
     }
     
+    console.error('Message d\'erreur complet:', errorMessage);
     throw new Error(errorMessage);
   }
 }
