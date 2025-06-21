@@ -41,13 +41,13 @@ const nextConfig = {
   },
   // Configuration pour le mode production
   poweredByHeader: false,
-  // Optimisations
-  experimental: {
-    optimizeCss: true,
-    scrollRestoration: true,
-  },
-  // Configuration pour le build
-  staticPageGenerationTimeout: 1000,
+  // Optimisations - Désactivées temporairement pour le débogage
+  // experimental: {
+  //   optimizeCss: true,
+  //   scrollRestoration: true,
+  // },
+  // Configuration pour le build - Augmentation du timeout
+  staticPageGenerationTimeout: 3000,
 };
 
 module.exports = nextConfig;
