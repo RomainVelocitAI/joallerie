@@ -1,18 +1,29 @@
 [build]
-  command = "npm run build"
+  command = "npm install --include=dev && npm run build"
   publish = ".next"
 
 [build.environment]
   NODE_VERSION = "18.x"
   NPM_VERSION = "9.x"
+  NPM_FLAGS = "--include=dev"
 
 [dev]
   framework = "next"
   targetPort = 3000
-  port = 8888
+  port = 3000
+  target = "server"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-[context.production.environment]
-  NODE_ENV = "production"
+[context.production]
+  command = "npm install --include=dev && npm run build"
+  environment = { NODE_ENV = "production" }
+
+[context.deploy-preview]
+  command = "npm install --include=dev && npm run build"
+  environment = { NODE_ENV = "production" }
+
+[context.branch-deploy]
+  command = "npm install --include=dev && npm run build"
+  environment = { NODE_ENV = "production" }
