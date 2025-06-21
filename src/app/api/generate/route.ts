@@ -29,74 +29,95 @@ const openai = new OpenAI({
 
 // Fonction pour générer une image avec l'API de génération d'images
 async function generateImage(prompt: string): Promise<string> {
-  console.log('Début de la génération d\'image avec le prompt:', prompt);
+  console.log('=== DÉBUT DE LA GÉNÉRATION D\'IMAGE ===');
+  console.log('Prompt reçu:', prompt);
   
   try {
-    // Utilisation du SDK OpenAI officiel
-    console.log('Appel de l\'API OpenAI avec le prompt:', prompt);
+    // Vérification de la clé API
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('ERREUR: La clé API OpenAI n\'est pas configurée');
+      throw new Error('Configuration manquante: clé API OpenAI non définie');
+    }
     
+    console.log('Configuration du client OpenAI...');
+    
+    // Configuration du client OpenAI
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+    
+    console.log('Client OpenAI configuré, appel de l\'API...');
+    
+    // Appel simplifié à l'API
     const response = await openai.images.generate({
-      model: "gpt-image-1",
+      model: "dall-e-3", // Changement pour un modèle plus stable
       prompt: prompt,
       n: 1,
       size: "1024x1024"
-      // Le modèle gpt-image-1 retourne toujours du b64_json par défaut
     });
 
-    console.log('Réponse de l\'API OpenAI:', JSON.stringify(response, null, 2));
+    console.log('Réponse brute de l\'API:', JSON.stringify(response, null, 2));
     
-    // Vérifier que la réponse contient bien des données
+    // Vérification de la réponse
     if (!response.data || response.data.length === 0) {
       throw new Error('Aucune donnée reçue de l\'API de génération d\'images');
     }
 
-    // Récupérer les données binaires de l'image
     const imageData = response.data[0];
     
-    // Vérifier si on a des données binaires
-    if (!imageData.b64_json) {
-      throw new Error('Format de réponse inattendu: données binaires manquantes');
+    if (!imageData.url && !imageData.b64_json) {
+      throw new Error('Format de réponse inattendu: ni URL ni données binaires trouvées');
     }
     
-    // Convertir les données base64 en URL de données
-    return `data:image/webp;base64,${imageData.b64_json}`;
+    // Retourner l'URL ou les données binaires
+    if (imageData.url) {
+      console.log('Image générée avec succès (URL)');
+      return imageData.url;
+    } else if (imageData.b64_json) {
+      console.log('Image générée avec succès (données binaires)');
+      return `data:image/webp;base64,${imageData.b64_json}`;
+    }
+    
+    throw new Error('Format de réponse inattendu');
     
   } catch (error: unknown) {
-    console.error('Erreur lors de la génération d\'image:', error);
+    console.error('=== ERREUR LORS DE LA GÉNÉRATION ===');
     
     let errorMessage = 'Échec de la génération d\'image';
     
-    if (typeof error === 'object' && error !== null) {
-      const openAIError = error as OpenAIError;
-      
-      if ('message' in openAIError) {
-        errorMessage += `: ${openAIError.message}`;
-      }
+    if (error instanceof Error) {
+      console.error('Erreur:', error.message);
+      console.error('Stack:', error.stack);
+      errorMessage += `: ${error.message}`;
       
       // Si c'est une erreur de l'API OpenAI
-      if (openAIError.response) {
-        const { status, statusText, data } = openAIError.response;
-        
-        console.error('Détails de l\'erreur API:', {
-          status,
-          statusText,
-          data
+      if ('response' in error) {
+        const response = (error as any).response;
+        console.error('Réponse d\'erreur:', {
+          status: response?.status,
+          statusText: response?.statusText,
+          data: response?.data
         });
         
-        errorMessage += ` (Code: ${status} - ${statusText})`;
-        
-        if (data?.error?.message) {
-          errorMessage += ` - ${data.error.message}`;
+        if (response?.status) {
+          errorMessage += ` (Code: ${response.status}`;
+          if (response.statusText) errorMessage += ` - ${response.statusText}`;
+          errorMessage += ')';
         }
-      } else if (openAIError.error) {
-        // Gestion des erreurs directes de l'API
-        errorMessage += ` - ${openAIError.error.message}`;
+        
+        if (response?.data?.error?.message) {
+          errorMessage += ` - ${response.data.error.message}`;
+        }
       }
     } else if (typeof error === 'string') {
+      console.error('Erreur inattendue (string):', error);
       errorMessage += `: ${error}`;
+    } else {
+      console.error('Erreur inattendue (type inconnu):', error);
+      errorMessage += ': Erreur inconnue';
     }
     
-    console.error('Message d\'erreur complet:', errorMessage);
+    console.error('=== FIN DU MESSAGE D\'ERREUR ===');
     throw new Error(errorMessage);
   }
 }
