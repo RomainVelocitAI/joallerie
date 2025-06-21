@@ -1,0 +1,18 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "18.x"
+  NPM_VERSION = "9.x"
+
+[dev]
+  framework = "next"
+  targetPort = 3000
+  port = 8888
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[context.production.environment]
+  NODE_ENV = "production"

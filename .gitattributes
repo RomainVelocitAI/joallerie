@@ -1,0 +1,41 @@
+# Normaliser les fins de ligne pour tous les fichiers texte
+* text=auto eol=lf
+
+# Fichiers binaires à ne pas modifier
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.eot binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+
+# Fichiers spécifiques à Windows
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Fichiers de configuration spécifiques à l'environnement
+.env*.local binary
+
+# Fichiers de dépendances
+package-lock.json binary
+
+# Fichiers de cache et de build
+.next/** binary
+out/** binary
+node_modules/** binary
+
+# Fichiers IDE et éditeurs de code
+.vscode/* !eol
+.idea/* !eol
+*.sublime-* !eol
+*.sublime-project !eol
+*.sublime-workspace !eol
+
+# Fichiers système
+.DS_Store binary
+Thumbs.db binary

@@ -1,0 +1,42 @@
+# EditorConfig is awesome: https://EditorConfig.org
+
+# top-most EditorConfig file
+root = true
+
+# Unix-style newlines with a newline ending every file
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = true
+
+# Markdown files
+[*.{md,mdx,markdown}]
+trim_trailing_whitespace = false
+
+# JSON files
+[*.json]
+indent_size = 2
+
+# YAML files
+[*.{yaml,yml}]
+indent_size = 2
+
+# Shell scripts
+[*.sh]
+indent_size = 2
+shell_variant = bash
+
+# Windows specific files
+[*.{cmd,bat}]
+end_of_line = crlf
+
+# Makefiles use tabs for indentation
+[Makefile]
+indent_style = tab
+
+# Package.json files
+[package.json]
+indent_size = 2
