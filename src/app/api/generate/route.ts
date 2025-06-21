@@ -17,15 +17,13 @@ const openai = new OpenAI({
 // Fonction pour générer une image avec l'API de génération d'images
 async function generateImage(prompt: string): Promise<string> {
   try {
-    // Appeler l'API de génération d'images selon la documentation officielle
+    // Appeler l'API de génération d'images avec le modèle gpt-image-1
     const response = await openai.images.generate({
-      model: "dall-e-3",  // Utilisation du modèle DALL-E 3 comme recommandé
+      model: "gpt-image-1",
       prompt: prompt,
-      n: 1,  // Une seule image
-      size: "1024x1024",  // Taille maximale pour DALL-E 3
-      quality: "standard",  // Qualité standard (ou "hd" pour haute qualité)
-      style: "vivid",  // Style plus vif et détaillé
-      response_format: "url"  // Format de réponse avec URL
+      n: 1,
+      size: "1024x1024",
+      response_format: "url"
     });
 
     // Vérifier que la réponse contient bien des données
@@ -76,7 +74,7 @@ export async function POST(request: Request) {
       success: true, 
       imageUrl,
       description: prompt,
-      model: "dall-e-3"
+      model: "gpt-image-1"
     });
 
   } catch (error) {
