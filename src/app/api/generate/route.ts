@@ -24,8 +24,8 @@ async function generateImage(prompt: string): Promise<string> {
       model: "gpt-image-1",
       prompt: prompt,
       n: 1,
-      size: "1024x1024",
-      response_format: "b64_json"
+      size: "1024x1024"
+      // Le modèle gpt-image-1 retourne toujours du b64_json par défaut
     });
 
     console.log('Réponse de l\'API OpenAI:', JSON.stringify(response, null, 2));
