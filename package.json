@@ -11,7 +11,7 @@
   },
   "scripts": {
     "dev": "next dev -p 3001",
-    "build": "node scripts/check-env.js && next build",
+    "build": "node scripts/check-env.js && npx next build",
     "build:ci": "node scripts/check-env.js && next build --no-lint",
     "start": "next start -p 3001",
     "clean": "rimraf .next node_modules package-lock.json && npm install",
