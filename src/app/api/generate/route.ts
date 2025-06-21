@@ -17,32 +17,66 @@ const openai = new OpenAI({
 // Fonction pour générer une image avec l'API de génération d'images
 async function generateImage(prompt: string): Promise<string> {
   try {
+    // Construction du corps de la requête selon la documentation officielle
+    const requestBody = {
+      model: "gpt-image-1",
+      prompt: prompt,
+      n: 1,
+      size: "1024x1024",
+      background: "auto",
+      output_format: "webp",
+      output_compression: 100,
+      quality: "high",
+      moderation: "auto"
+    };
+    
+    console.log('Envoi de la requête à l\'API OpenAI:', JSON.stringify(requestBody, null, 2));
+    
     // Appeler directement l'API REST d'OpenAI avec le modèle gpt-image-1
     const response = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'OpenAI-Beta': 'assistants=v2' // Nécessaire pour gpt-image-1
       },
-      body: JSON.stringify({
-        model: "gpt-image-1",
-        prompt: prompt,
-        n: 1,
-        size: "1024x1024",
-        background: "auto",
-        output_format: "webp",
-        output_compression: 100,
-        quality: "high",
-        moderation: "auto"
-      })
+      body: JSON.stringify(requestBody)
     });
-
-    const responseData = await response.json();
     
-    console.log('Réponse brute de l\'API:', JSON.stringify(responseData, null, 2));
+    console.log('Statut de la réponse:', response.status, response.statusText);
+    
+    // Afficher les en-têtes de la réponse
+    const responseHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      responseHeaders[key] = value;
+    });
+    console.log('En-têtes de la réponse:', JSON.stringify(responseHeaders, null, 2));
+    
+    // Vérifier si la clé API est correctement configurée
+    if (response.status === 401) {
+      throw new Error('Clé API OpenAI invalide ou manquante. Vérifiez votre configuration.');
+    }
+    
+    // Lire le corps de la réponse comme texte d'abord
+    const responseText = await response.text();
+    console.log('Corps de la réponse (texte brut):', responseText);
+    
+    // Essayer de parser le JSON
+    let responseData;
+    try {
+      responseData = JSON.parse(responseText);
+      console.log('Réponse parsée de l\'API:', JSON.stringify(responseData, null, 2));
+    } catch (parseError) {
+      console.error('Erreur lors du parsing de la réponse:', parseError);
+      throw new Error(`Réponse non valide de l'API: ${responseText.substring(0, 200)}...`);
+    }
     
     if (!response.ok) {
-      throw new Error(`Erreur API: ${JSON.stringify(responseData)}`);
+      // Si l'API retourne une erreur avec un message, l'utiliser
+      if (responseData.error && responseData.error.message) {
+        throw new Error(`Erreur API (${response.status}): ${responseData.error.message}`);
+      }
+      throw new Error(`Erreur API (${response.status}): ${JSON.stringify(responseData)}`);
     }
 
     const data = responseData;
