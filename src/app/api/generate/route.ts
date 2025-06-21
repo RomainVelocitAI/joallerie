@@ -17,21 +17,35 @@ const openai = new OpenAI({
 // Fonction pour générer une image avec l'API de génération d'images
 async function generateImage(prompt: string): Promise<string> {
   try {
-    // Appeler l'API de génération d'images avec le modèle gpt-image-1
-    const response = await openai.images.generate({
-      model: "gpt-image-1",
-      prompt: prompt,
-      n: 1,
-      size: "1024x1024",
-      response_format: "url"
+    // Appeler directement l'API REST d'OpenAI
+    const response = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "dall-e-3",  // Utilisation de DALL-E 3 comme modèle de secours
+        prompt: prompt,
+        n: 1,
+        size: "1024x1024",
+        response_format: "url"
+      })
     });
 
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Erreur API: ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await response.json();
+    
     // Vérifier que la réponse contient bien des données
-    if (!response.data || response.data.length === 0) {
+    if (!data.data || data.data.length === 0) {
       throw new Error('Aucune donnée reçue de l\'API de génération d\'images');
     }
 
-    const imageUrl = response.data[0]?.url;
+    const imageUrl = data.data[0]?.url;
 
     if (!imageUrl) {
       throw new Error('Aucune URL d\'image reçue de l\'API de génération d\'images');
