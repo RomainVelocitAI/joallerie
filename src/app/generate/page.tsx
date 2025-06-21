@@ -74,8 +74,19 @@ export default function JewelryGenerator() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Échec de la génération d\'image');
+        let errorData;
+        try {
+          errorData = await response.json();
+          console.error('Erreur API:', errorData);
+        } catch (e) {
+          console.error('Impossible de parser la réponse d\'erreur:', await response.text());
+          throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+        }
+        
+        const error = new Error(errorData.error || 'Échec de la génération d\'image');
+        // Ajouter les détails supplémentaires à l'erreur
+        Object.assign(error, { response: errorData });
+        throw error;
       }
 
       const data = await response.json();
@@ -98,7 +109,37 @@ export default function JewelryGenerator() {
       toast.success('Image générée avec succès !');
     } catch (error) {
       console.error('Erreur lors de la génération de l\'image:', error);
-      toast.error(error instanceof Error ? error.message : 'Une erreur est survenue');
+      
+      // Afficher plus de détails sur l'erreur
+      let errorMessage = 'Erreur lors de la génération de l\'image';
+      
+      try {
+        if (error instanceof Error) {
+          // Si c'est une erreur avec une réponse JSON
+          if ('json' in error && typeof error.json === 'function') {
+            const errorData = await error.json();
+            console.error('Détails de l\'erreur:', errorData);
+            errorMessage = errorData.error || errorData.message || errorMessage;
+            
+            // Si l'API a retourné des détails supplémentaires
+            if (errorData.details) {
+              console.error('Détails techniques:', errorData.details);
+            }
+          } else {
+            errorMessage = error.message || errorMessage;
+          }
+        }
+      } catch (e) {
+        console.error('Erreur lors de la récupération des détails de l\'erreur:', e);
+      }
+      
+      toast.error(errorMessage, {
+        description: 'Veuillez réessayer ou contacter le support si le problème persiste.',
+        action: {
+          label: 'Copier l\'erreur',
+          onClick: () => navigator.clipboard.writeText(error instanceof Error ? error.message : 'Erreur inconnue')
+        }
+      });
     } finally {
       setIsGenerating(false);
     }
