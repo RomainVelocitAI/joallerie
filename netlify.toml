@@ -14,24 +14,21 @@
 
 [context.production]
   command = "npm install --legacy-peer-deps --include=dev && npm run build"
-  environment = { 
-    NODE_ENV = "production",
+  [context.production.environment]
+    NODE_ENV = "production"
     NPM_FLAGS = "--legacy-peer-deps --include=dev"
-  }
 
 [context.deploy-preview]
   command = "npm install --legacy-peer-deps --include=dev && npm run build"
-  environment = { 
-    NODE_ENV = "production",
+  [context.deploy-preview.environment]
+    NODE_ENV = "production"
     NPM_FLAGS = "--legacy-peer-deps --include=dev"
-  }
 
 [context.branch-deploy]
   command = "npm install --legacy-peer-deps --include=dev && npm run build"
-  environment = { 
-    NODE_ENV = "production",
+  [context.branch-deploy.environment]
+    NODE_ENV = "production"
     NPM_FLAGS = "--legacy-peer-deps --include=dev"
-  }
 
 [dev]
   framework = "next"
