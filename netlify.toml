@@ -6,6 +6,10 @@
   NODE_VERSION = "18.x"
   NPM_VERSION = "9.x"
   NPM_FLAGS = "--legacy-peer-deps"
+  NEXT_PUBLIC_SITE_URL = "https://votre-nom-de-domaine.netlify.app"
+  NEXT_PUBLIC_DEBUG = "false"
+  NEXT_PUBLIC_DEFAULT_THEME = "system"
+  NEXT_PUBLIC_API_URL = "/api"
 
 [dev]
   framework = "next"
