@@ -35,6 +35,7 @@ export default function JewelryGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<JewelryImage[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const copyDescription = (description: string) => {
     navigator.clipboard.writeText(description);
@@ -44,8 +45,12 @@ export default function JewelryGenerator() {
 
 
   const generateImages = async () => {
+    setError(null); // Réinitialiser les erreurs précédentes
+    
     if (!description.trim()) {
-      toast.error('Veuillez entrer une description');
+      const errorMsg = 'Veuillez entrer une description';
+      setError(errorMsg);
+      toast.error(errorMsg);
       return;
     }
 
@@ -79,7 +84,11 @@ export default function JewelryGenerator() {
         responseText = await response.text();
         console.log('Réponse brute:', responseText);
       } catch (e) {
-        console.error('Impossible de lire le corps de la réponse:', e);
+        const errorMsg = 'Impossible de lire la réponse du serveur';
+        console.error(errorMsg, e);
+        setError(errorMsg);
+        toast.error(errorMsg);
+        return;
       }
 
       if (!response.ok) {
@@ -92,8 +101,11 @@ export default function JewelryGenerator() {
             errorData
           });
         } catch (e) {
+          const errorMsg = `Erreur ${response.status}: ${response.statusText}`;
           console.error('Impossible de parser la réponse d\'erreur:', responseText);
-          throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+          setError(errorMsg);
+          toast.error(errorMsg);
+          return;
         }
         
         const errorMessage = errorData?.error || 'Échec de la génération d\'image';
@@ -119,16 +131,25 @@ export default function JewelryGenerator() {
         data = responseText ? JSON.parse(responseText) : null;
         console.log('Données de la réponse:', data);
       } catch (e) {
-        console.error('Erreur lors du parsing de la réponse:', e);
-        throw new Error('Format de réponse invalide');
+        const errorMsg = 'Format de réponse invalide';
+        console.error(errorMsg, e);
+        setError(errorMsg);
+        toast.error(errorMsg);
+        return;
       }
 
       if (!data || !data.success) {
-        throw new Error(data?.error || 'Erreur inconnue lors de la génération');
+        const errorMsg = data?.error || 'Erreur inconnue lors de la génération';
+        setError(errorMsg);
+        toast.error(errorMsg);
+        return;
       }
 
       if (!data.b64Image) {
-        throw new Error('Aucune donnée d\'image reçue');
+        const errorMsg = 'Aucune donnée d\'image reçue';
+        setError(errorMsg);
+        toast.error(errorMsg);
+        return;
       }
 
       // Créer une URL de données pour l'image en base64
@@ -172,13 +193,8 @@ export default function JewelryGenerator() {
         console.error('Erreur lors de la récupération des détails de l\'erreur:', e);
       }
       
-      toast.error(errorMessage, {
-        description: 'Veuillez réessayer ou contacter le support si le problème persiste.',
-        action: {
-          label: 'Copier l\'erreur',
-          onClick: () => navigator.clipboard.writeText(error instanceof Error ? error.message : 'Erreur inconnue')
-        }
-      });
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsGenerating(false);
     }
@@ -226,6 +242,22 @@ export default function JewelryGenerator() {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Générateur de Bijoux IA</h1>
+      
+      {/* Affichage des erreurs */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Formulaire de génération */}
@@ -412,3 +444,4 @@ export default function JewelryGenerator() {
     </div>
   );
 }
+

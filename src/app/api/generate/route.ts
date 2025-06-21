@@ -18,16 +18,29 @@ const openai = new OpenAI({
 });
 
 export async function POST(request: Request) {
+  console.log('=== DÉBUT DE LA REQUÊTE ===');
+  console.log('Environnement:', process.env.NODE_ENV);
+  
   try {
-    console.log('=== DÉBUT DE LA REQUÊTE ===');
-    
     // Vérifier que la clé API est configurée
-    if (!process.env.OPENAI_API_KEY) {
+    const openAiKey = process.env.OPENAI_API_KEY;
+    console.log('OPENAI_API_KEY:', openAiKey ? '*** (présente)' : 'manquante');
+    
+    if (!openAiKey) {
       throw new Error('La clé API OpenAI n\'est pas configurée');
     }
     
-    // Récupérer les données de la requête
-    const { description, jewelryType, material, style } = await request.json() as GenerateRequest;
+    // Vérifier que la requête contient des données JSON
+    let requestBody;
+    try {
+      requestBody = await request.json();
+      console.log('Corps de la requête reçu:', JSON.stringify(requestBody, null, 2));
+    } catch (parseError) {
+      console.error('Erreur lors de l\'analyse du corps de la requête:', parseError);
+      throw new Error('Format de requête invalide');
+    }
+    
+    const { description, jewelryType, material, style } = requestBody as GenerateRequest;
     
     // Valider les données
     if (!description?.trim() || !jewelryType || !material || !style) {
@@ -39,14 +52,19 @@ export async function POST(request: Request) {
     // Créer un prompt détaillé
     const materialInEnglish = material === 'or' ? 'gold' : material;
     const prompt = `High-end product photography of a modern ${materialInEnglish} ${jewelryType} with detailed ${description} motifs, shown from three different angles in the same image — top view, side view, and perspective view. The ${jewelryType} features ${style} design and intricate ${description} detailing. Set on a dark velvet background with soft studio lighting, shallow depth of field, and realistic ${materialInEnglish} textures. Ultra-realistic render, 8K resolution, luxury jewelry showcase style.`;
-    
-    console.log('Appel de l\'API OpenAI avec le prompt:', prompt);
-    
+
     // Appeler l'API OpenAI
-    console.log('Appel de l\'API OpenAI avec le prompt:', prompt.substring(0, 100) + '...');
+    console.log('=== APPEL OPENAI ===');
+    console.log('Modèle: gpt-image-1');
+    console.log('Taille: 1024x1024');
+    console.log('Prompt (tronqué):', prompt.substring(0, 200) + '...');
     
     try {
       // 1. Appel à l'API OpenAI
+      console.log('Initialisation de la requête vers OpenAI...');
+      const startTime = Date.now();
+      
+      // Utilisation du modèle gpt-image-1 comme spécifié
       const response = await openai.images.generate({
         model: "gpt-image-1",
         prompt: prompt,
@@ -54,6 +72,9 @@ export async function POST(request: Request) {
         size: "1024x1024"
         // Le modèle gpt-image-1 retourne toujours du b64_json par défaut
       });
+      
+      const endTime = Date.now();
+      console.log(`Réponse reçue d'OpenAI en ${endTime - startTime}ms`);
       
       console.log('Réponse de l\'API OpenAI reçue:', JSON.stringify({
         hasData: !!response.data,
