@@ -43,10 +43,14 @@ export async function POST(request: Request) {
     }
     
     // Configuration du client OpenAI avec la clé API
+    console.log('Configuration du client OpenAI...');
     const openai = new OpenAI({
       apiKey: openAiKey,
-      timeout: 120000, // 120 secondes de timeout
+      timeout: 30000, // 30 secondes de timeout
+      maxRetries: 2,
     });
+    
+    console.log('Client OpenAI configuré avec succès');
     
     // Vérifier que la requête contient des données JSON
     let requestBody: GenerateRequest;
@@ -110,13 +114,47 @@ export async function POST(request: Request) {
       console.log('Envoi de la requête à OpenAI avec le prompt (tronqué):', 
         truncatedPrompt.substring(0, 100) + '...');
       
-      const startTime = Date.now();
-      const response = await openai.images.generate(requestData, {
-        timeout: 120000 // 120 secondes de timeout
-      });
+      console.log('Envoi de la requête à OpenAI...');
+      console.log('Données de la requête:', JSON.stringify({
+        ...requestData,
+        prompt: requestData.prompt.substring(0, 100) + '...' // Afficher seulement le début du prompt
+      }, null, 2));
       
-      const endTime = Date.now();
-      console.log(`Appel à l'API OpenAI terminé en ${(endTime - startTime) / 1000} secondes`);
+      const startTime = Date.now();
+      let response;
+      
+      try {
+        response = await openai.images.generate(requestData, {
+          timeout: 30000 // 30 secondes de timeout
+        });
+        
+        const endTime = Date.now();
+        console.log(`Appel à l'API OpenAI réussi en ${(endTime - startTime) / 1000} secondes`);
+      } catch (error) {
+        const apiError = error as Error & { code?: string };
+        console.error('Erreur lors de l\'appel à l\'API OpenAI:', apiError);
+        
+        // Vérifier si c'est une erreur de timeout
+        if (apiError.name === 'TimeoutError' || apiError.code === 'ETIMEDOUT') {
+          return new NextResponse(
+            JSON.stringify({ 
+              error: 'Timeout',
+              details: 'La requête a expiré. Veuillez réessayer avec un prompt plus court.'
+            }), 
+            { status: 504, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // Autre type d'erreur
+        return new NextResponse(
+          JSON.stringify({ 
+            error: 'Erreur de l\'API OpenAI',
+            details: apiError.message || 'Erreur inconnue lors de l\'appel à l\'API',
+            ...(apiError.code && { code: apiError.code })
+          }), 
+          { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
       
       // Vérifier si la réponse contient des données
       if (!response.data || response.data.length === 0) {
@@ -198,27 +236,53 @@ export async function POST(request: Request) {
       }
       
     } catch (error) {
-      console.error('Erreur lors de l\'appel à l\'API OpenAI:', error);
+      console.error('Erreur inattendue lors de la génération de l\'image:', error);
       
       let errorMessage = 'Erreur inconnue';
-      let errorDetails: Record<string, any> = {};
+      let errorCode: string | undefined;
+      let errorDetails: Record<string, any> = {
+        timestamp: new Date().toISOString()
+      };
       
       if (error instanceof Error) {
         errorMessage = error.message;
+        errorCode = (error as any).code;
+        
         errorDetails = {
+          ...errorDetails,
           name: error.name,
           stack: error.stack,
           ...(error as any).response?.data
         };
       }
       
+      // Si c'est une erreur de validation
+      if (errorMessage.includes('validation')) {
+        return new NextResponse(
+          JSON.stringify({
+            error: 'Erreur de validation',
+            details: 'Les données fournies sont invalides',
+            ...errorDetails
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Pour les autres erreurs
       return new NextResponse(
         JSON.stringify({
           error: 'Erreur lors de la génération de l\'image',
           details: errorMessage,
-          ...(Object.keys(errorDetails).length > 0 && { debug: errorDetails })
+          code: errorCode,
+          ...(process.env.NODE_ENV === 'development' && { debug: errorDetails })
         }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
+        { 
+          status: 500, 
+          headers: { 
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store, max-age=0'
+          } 
+        }
       );
     }
     
