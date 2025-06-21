@@ -94,28 +94,51 @@ export async function POST(request: Request) {
         }
       );
       
-    } catch (error) {
+    } catch (error: unknown) {
       // Gestion des erreurs détaillée
-      console.error('Erreur lors de l\'appel à l\'API OpenAI:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-        code: error.code,
-        status: error.status,
-        response: error.response ? {
-          status: error.response.status,
-          statusText: error.response.statusText,
-          headers: error.response.headers,
-          data: error.response.data
-        } : undefined
-      });
+      let errorMessage = 'Une erreur inconnue est survenue';
+      let errorDetails: Record<string, any> = { unknownError: true };
+      
+      if (error instanceof Error) {
+        const errorObj = error as Error & {
+          code?: string;
+          status?: number;
+          response?: {
+            status: number;
+            statusText: string;
+            headers: Record<string, string>;
+            data: any;
+          };
+        };
+        
+        errorMessage = errorObj.message || errorMessage;
+        errorDetails = {
+          name: errorObj.name,
+          message: errorObj.message,
+          stack: errorObj.stack,
+          code: errorObj.code,
+          status: errorObj.status,
+          response: errorObj.response ? {
+            status: errorObj.response.status,
+            statusText: errorObj.response.statusText,
+            headers: errorObj.response.headers,
+            data: errorObj.response.data
+          } : undefined
+        };
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error && typeof error === 'object' && 'toString' in error) {
+        errorMessage = error.toString();
+      }
+      
+      console.error('Erreur lors de l\'appel à l\'API OpenAI:', errorMessage, '\nDétails:', errorDetails);
       
       // Renvoyer une réponse d'erreur structurée
       return new NextResponse(
         JSON.stringify({ 
           success: false,
           error: 'Erreur lors de la génération de l\'image',
-          details: error.message,
+          details: errorMessage,
           timestamp: new Date().toISOString()
         }), 
         { 
