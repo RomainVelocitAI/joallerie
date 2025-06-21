@@ -108,29 +108,54 @@ export async function POST(request: Request) {
     
     console.log('Prompt envoyé à l\'API:', prompt);
     
-    // Générer l'image
-    const imageUrl = await generateImage(prompt);
-    
-    console.log('Réponse de l\'API:', { imageUrl: imageUrl ? 'Reçue' : 'Vide' });
+    try {
+      // Générer l'image
+      console.log('Début de la génération d\'image avec le prompt:', prompt);
+      const imageUrl = await generateImage(prompt);
+      
+      console.log('Image générée avec succès, URL de l\'image:', imageUrl ? 'Reçue' : 'Vide');
 
-    // Retourner la réponse avec l'URL de l'image générée
-    return NextResponse.json({ 
-      success: true, 
-      imageUrl,
-      description: prompt,
-      model: "gpt-image-1"
-    });
+      // Retourner la réponse avec l'URL de l'image générée
+      return NextResponse.json({ 
+        success: true, 
+        imageUrl,
+        description: prompt,
+        model: "gpt-image-1"
+      });
+    } catch (error) {
+      console.error('Erreur détaillée lors de la génération:', error);
+      if (error instanceof Error) {
+        console.error('Message d\'erreur:', error.message);
+        if ('stack' in error) {
+          console.error('Stack trace:', error.stack);
+        }
+      }
+      throw error; // Laisser le bloc catch externe gérer l'erreur
+    }
 
   } catch (error) {
-    console.error('Erreur lors de la génération d\'image :', error);
+    console.error('Erreur globale lors de la génération d\'image :', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+    const errorDetails = error instanceof Error ? {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    } : {};
+
     return NextResponse.json(
       { 
         success: false,
         error: 'Erreur lors de la génération de l\'image',
-        details: error instanceof Error ? error.message : 'Erreur inconnue',
+        details: errorMessage,
+        errorDetails,
         timestamp: new Date().toISOString()
       },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
     );
   }
 }
