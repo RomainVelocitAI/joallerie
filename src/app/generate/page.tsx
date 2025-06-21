@@ -107,7 +107,14 @@ export default function JewelryGenerator() {
         throw error;
       }
 
-      let data;
+      // Parser la réponse JSON
+      let data: {
+        success: boolean;
+        error?: string;
+        b64Image?: string;
+        mimeType?: string;
+      } | null = null;
+      
       try {
         data = responseText ? JSON.parse(responseText) : null;
         console.log('Données de la réponse:', data);
@@ -120,16 +127,23 @@ export default function JewelryGenerator() {
         throw new Error(data?.error || 'Erreur inconnue lors de la génération');
       }
 
+      if (!data.b64Image) {
+        throw new Error('Aucune donnée d\'image reçue');
+      }
+
+      // Créer une URL de données pour l'image en base64
+      const imageUrl = `data:${data.mimeType || 'image/png'};base64,${data.b64Image}`;
+
       // Mettre à jour l'état avec la nouvelle image
       const newImage: JewelryImage = {
         id: `img-${Date.now()}`,
-        url: data.imageUrl,
-        description: data.description || `${jewelryType} en ${material} de style ${style}: ${description}`,
-        selected: true,
+        url: imageUrl,
+        description: `${jewelryType} en ${material} (${style}) - ${new Date().toLocaleString()}`,
+        selected: true
       };
 
-      setGeneratedImages([newImage]);
-      setSelectedImage(newImage.url);
+      setGeneratedImages(prev => [...prev, newImage]);
+      setSelectedImage(newImage.id);
       
       toast.success('Image générée avec succès !');
     } catch (error) {
