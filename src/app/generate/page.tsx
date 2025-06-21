@@ -49,17 +49,24 @@ export default function JewelryGenerator() {
       return;
     }
 
+    console.log('Données du formulaire:', {
+      description,
+      jewelryType,
+      material,
+      style
+    });
+
     setIsGenerating(true);
     
     try {
-      // Appel à l'API pour générer l'image avec GPT-4 Vision
+      // Appel à l'API pour générer l'image
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          prompt: description,
+          description,
           jewelryType,
           material,
           style,
@@ -71,13 +78,17 @@ export default function JewelryGenerator() {
         throw new Error(errorData.error || 'Échec de la génération d\'image');
       }
 
-      const images = await response.json();
+      const data = await response.json();
+
+      if (!data.success || !data.imageUrl) {
+        throw new Error(data.error || 'Erreur lors de la génération de l\'image');
+      }
 
       // Mettre à jour l'état avec la nouvelle image
       const newImage: JewelryImage = {
         id: `img-${Date.now()}`,
-        url: images[0].url,
-        description: images[0].description || `${jewelryType} en ${material} de style ${style}: ${description}`,
+        url: data.imageUrl,
+        description: data.description || `${jewelryType} en ${material} de style ${style}: ${description}`,
         selected: true,
       };
 

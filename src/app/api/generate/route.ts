@@ -46,7 +46,17 @@ async function generateImage(prompt: string): Promise<string> {
 
 export async function POST(request: Request) {
   try {
-    const { description, jewelryType, material, style } = (await request.json()) as GenerateRequest;
+    const requestData = await request.json();
+    console.log('Données reçues par l\'API:', requestData);
+    
+    const { description, jewelryType, material, style } = requestData as GenerateRequest;
+    
+    console.log('Données extraites:', {
+      description,
+      jewelryType,
+      material,
+      style
+    });
 
     // Validation des champs requis
     if (!description?.trim()) {
