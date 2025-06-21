@@ -7,36 +7,16 @@ const mockRouter = {
   pathname: '/',
   query: {},
   asPath: '/',
-  basePath: '',
-  isReady: true,
-  isLocaleDomain: false,
-  isPreview: false,
-  isFallback: false,
-  locale: 'en',
-  locales: ['en'],
-  defaultLocale: 'en',
-  domainLocales: [],
-  push: jest.fn().mockResolvedValue(true),
-  replace: jest.fn().mockResolvedValue(true),
+  push: jest.fn(),
+  replace: jest.fn(),
   reload: jest.fn(),
   back: jest.fn(),
-  prefetch: jest.fn().mockResolvedValue(undefined),
-  beforePopState: jest.fn(),
-  events: {
-    on: jest.fn(),
-    off: jest.fn(),
-    emit: jest.fn(),
-  },
+  prefetch: jest.fn(),
 };
 
 // Mock next/router
 jest.mock('next/router', () => ({
   useRouter: () => mockRouter,
-  __esModule: true,
-  default: {
-    __esModule: true,
-    useRouter: () => mockRouter,
-  },
 }));
 
 // Mock next/head
@@ -44,8 +24,8 @@ jest.mock('next/head', () => {
   const React = require('react');
   return {
     __esModule: true,
-    default: function Head({ children }: { children: React.ReactNode }) {
-      return <>{children}</>;
+    default: function Head({ children }: { children?: any }) {
+      return React.createElement(React.Fragment, null, children);
     },
   };
 });
@@ -53,73 +33,38 @@ jest.mock('next/head', () => {
 // Mock next/image
 jest.mock('next/image', () => {
   const React = require('react');
-  // eslint-disable-next-line react/display-name
-  return function NextImage({
-    src,
-    alt,
-    width,
-    height,
-    ...props
-  }: {
-    src: string;
-    alt: string;
-    width?: number;
-    height?: number;
-    [key: string]: any;
-  }) {
-    // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
-    return <img src={src} alt={alt} width={width} height={height} {...props} />;
+  return function Image(props: any) {
+    return React.createElement('img', props);
+  };
+});
+
+// Mock next/link
+jest.mock('next/link', () => {
+  const React = require('react');
+  return function Link({ href, children, ...props }: any) {
+    return React.createElement('a', { ...props, href }, children);
   };
 });
 
 // Mock window.matchMedia
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && !window.matchMedia) {
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
     value: (query: string) => ({
       matches: false,
       media: query,
       onchange: null,
-      addListener: jest.fn(), // deprecated
-      removeListener: jest.fn(), // deprecated
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      dispatchEvent: jest.fn(),
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => true,
     }),
   });
 }
 
-// Mock ResizeObserver
-if (typeof window !== 'undefined' && !window.ResizeObserver) {
-  class ResizeObserver {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  }
-  window.ResizeObserver = ResizeObserver;
-}
-
-// Mock IntersectionObserver
-if (typeof window !== 'undefined' && !window.IntersectionObserver) {
-  class IntersectionObserver {
-    root: Element | null = null;
-    rootMargin = '';
-    thresholds: number[] = [];
-    
-    constructor() {}
-    
-    disconnect() {}
-    observe() {}
-    unobserve() {}
-    takeRecords(): IntersectionObserverEntry[] {
-      return [];
-    }
-  }
-  
-  window.IntersectionObserver = IntersectionObserver;
-}
-
 // Mock window.scrollTo
 if (typeof window !== 'undefined') {
-  window.scrollTo = jest.fn();
+  // @ts-ignore
+  window.scrollTo = () => {};
 }
