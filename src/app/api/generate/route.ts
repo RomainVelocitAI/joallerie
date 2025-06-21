@@ -100,12 +100,11 @@ export async function POST(request: Request) {
         console.log('Le prompt a été tronqué à', maxPromptLength, 'caractères');
       }
       
-      const requestData: OpenAI.ImageGenerateParams = {
+      const requestData = {
         model: "gpt-image-1",
         prompt: truncatedPrompt,
         n: 1,
-        size: "1024x1024",
-        response_format: 'b64_json'
+        size: "1024x1024" as const
       };
       
       console.log('Envoi de la requête à OpenAI avec le prompt (tronqué):', 
@@ -153,7 +152,7 @@ export async function POST(request: Request) {
           }
         );
       } 
-      // Si l'image est une URL au lieu de base64 (ce cas ne devrait normalement pas arriver avec response_format: 'b64_json')
+      // Si l'image est une URL au lieu de base64
       else if ('url' in imageData && imageData.url) {
         console.log('URL de l\'image reçue:', imageData.url);
         
